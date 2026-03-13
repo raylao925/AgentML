@@ -75,6 +75,7 @@ projects/<project_slug>/
 Copy the project template into a new folder:
 
 ```bash
+mkdir -p projects/<project_slug>/
 cp -r templates/. projects/<project_slug>/
 ```
 
