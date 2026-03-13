@@ -1,0 +1,77 @@
+# configs/baseline.yaml
+project:
+  name: "{{PROJECT_NAME}}"
+  run_tag: "baseline"
+  seed: 42
+
+task:
+  family: "classification_binary"  # classification_binary | classification_multiclass | regression | ranking | time_series
+  target: "{{TARGET_COLUMN}}"
+  primary_metric: "AUC"            # AUC | LogLoss | RMSE | MAE | NDCG@10 | MAP@K ...
+  metric_higher_is_better: true    # regression RMSE/MAE 通常 false
+  secondary_metrics: ["LogLoss", "Brier"]
+
+data:
+  data_version: "raw_snapshot_YYYYMMDD"
+  train_path: "data/processed/train.parquet"
+  test_path:  "data/processed/test.parquet"
+  time_col: null                  # time-series / time-based split 用，例如 "event_date"
+  group_key: null                 # GroupKFold / ranking query_id 用，例如 "customer_id" 或 "query_id"
+  id_cols: ["{{ID_COL}}"]         # 可選：用於 join / 排除
+  drop_cols: []                   # 明確禁止使用（含 leakage 欄位）
+
+cv:
+  cv_type: "StratifiedKFold"       # StratifiedKFold | KFold | GroupKFold | TimeSeriesSplit | CustomTimeFolds
+  n_splits: 5
+  shuffle: true
+  random_state: 42
+  stratify_col: "{{TARGET_COLUMN}}"  # classification 常用
+  time_col: null
+  group_key: null
+  gap_or_embargo: null             # time-series 可用，例如 "7d"
+
+features:
+  feature_set_id: "fs_baseline_v1"
+  # Feature flags 俾 agent 開關（配合 search_space.yaml）
+  flags:
+    use_scaler: false
+    use_onehot: true
+    use_target_encoding: false
+    use_lag_features: false
+    use_rolling_features: false
+    use_group_aggregations: false
+  params:
+    target_encoding:
+      smoothing: 10
+      min_samples_leaf: 50
+    lag_features:
+      lags: [1, 7, 14]
+    rolling_features:
+      windows: [7, 14, 28]
+      stats: ["mean", "std"]
+
+model:
+  name: "LightGBM"                 # LightGBM | XGBoost | CatBoost | LogisticRegression | ElasticNet | LGBMRanker | XGBRanker
+  objective: "binary"              # binary | multiclass | regression | ranking
+  params:
+    learning_rate: 0.05
+    n_estimators: 2000
+    max_depth: -1
+    num_leaves: 64
+    min_data_in_leaf: 50
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_lambda: 1.0
+
+training:
+  early_stopping: true
+  early_stopping_rounds: 200
+  eval_at: [10]                    # ranking 任務用（NDCG@10）
+  num_boost_round: 2000
+  verbose: 50
+
+output:
+  results_path: "results.json"
+  runs_dir: "runs/"
+  save_oof: true
+  save_model: true

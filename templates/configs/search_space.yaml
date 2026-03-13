@@ -1,0 +1,67 @@
+# configs/search_space.yaml
+policy:
+  # keep/discard 的預設門檻（可被 AGENT_RULES.md 覆寫）
+  improve_threshold:
+    classification_auc: 0.001
+    ranking_ndcg10: 0.002
+    regression_rmse_relative: 0.002     # 0.2%
+  tie_margin: 0.0002
+  std_worsen_ratio_max: 1.2             # std 不能增加超過 20%
+  resources_limits:
+    train_seconds_max: 1800
+    infer_seconds_max: 5
+    peak_memory_gb_max: 24
+    model_size_mb_max: 512
+
+allowed:
+  models_by_task:
+    classification_binary: ["LightGBM", "XGBoost", "CatBoost", "LogisticRegression"]
+    classification_multiclass: ["LightGBM", "XGBoost", "CatBoost"]
+    regression: ["LightGBM", "XGBoost", "CatBoost", "ElasticNet"]
+    ranking: ["LGBMRanker", "XGBRanker"]
+    time_series: ["LightGBM", "XGBoost"]  # baseline 先用 tree，之後你可加 seq model
+
+  feature_flags:
+    use_scaler: [true, false]
+    use_onehot: [true, false]
+    use_target_encoding: [true, false]
+    use_lag_features: [true, false]
+    use_rolling_features: [true, false]
+    use_group_aggregations: [true, false]
+
+search:
+  # 每次 experiment 建議改動規模（配合 AGENT_RULES）
+  max_changes_per_run: 2
+
+  # 超參空間：可用 type + range/list 表達
+  hyperparams:
+    LightGBM:
+      learning_rate: {type: "log_uniform", min: 0.01, max: 0.2}
+      num_leaves: {type: "int", min: 16, max: 256}
+      min_data_in_leaf: {type: "int", min: 10, max: 200}
+      subsample: {type: "uniform", min: 0.6, max: 1.0}
+      colsample_bytree: {type: "uniform", min: 0.6, max: 1.0}
+      reg_lambda: {type: "log_uniform", min: 1e-3, max: 10.0}
+
+    XGBoost:
+      learning_rate: {type: "log_uniform", min: 0.01, max: 0.2}
+      max_depth: {type: "int", min: 2, max: 10}
+      min_child_weight: {type: "log_uniform", min: 1.0, max: 20.0}
+      subsample: {type: "uniform", min: 0.6, max: 1.0}
+      colsample_bytree: {type: "uniform", min: 0.6, max: 1.0}
+      reg_lambda: {type: "log_uniform", min: 1e-3, max: 10.0}
+
+    LGBMRanker:
+      learning_rate: {type: "log_uniform", min: 0.01, max: 0.2}
+      num_leaves: {type: "int", min: 16, max: 256}
+
+guardrails:
+  # 明確禁止 agent 改動（避免破壞可比性）
+  forbidden_changes:
+    - "metric_definition"          # 不可改 metric 口徑
+    - "use_test_for_tuning"        # 不可用 test 做調參
+    - "cv_strategy_without_docs_update"
+  require_docs_update_if_changed:
+    - "cv"
+    - "features.flags"
+    - "model.name"
