@@ -12,6 +12,7 @@ projects/<project_slug>/依照structure.md Folder Layout自動生成folders和fi
 - 修改 `src/features.py`（新增/移除/修正特徵）
 - 修改 `src/train.py`（模型訓練流程、early stopping、loss、ranking objective 等）
 - 修改 `src/evaluate.py`（但不可改 metric 定義本身，只可修 bug / 提升效率）
+- 修改 `src/ensemble.py`（根據baseline cv score, 進行AutoML流程, 得出ensemble版本, 目標是ensemble的cv score會更好）
 
 你必須遵守 `AGENT_RULES.md` 的所有硬約束。
 

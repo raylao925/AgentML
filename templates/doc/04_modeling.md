@@ -44,6 +44,22 @@
   - Auto feature / AutoML 僅作為 **產生 candidate features / pipeline 的工具**，一旦決定採用，需在本 repo 中以明確的 sklearn/LightGBM pipeline 方式實作。
   - 任意由這些工具產生的特徵，必須滿足 `AGENT_RULES.md` 的所有 fold-safe / no-leakage 要求。
 
+### 2.3 Target 轉換（依任務與分布決定）
+- 目的：讓 target 符合模型與 metric 的假設（0/1、連續、尺度合理），並在 config / run 中明確記錄，推論時須還原。
+- **Binary 分類**：
+  - 若 target 為字串或類別（如 `Yes`/`No`、`0`/`1` 字串），**必須先轉成數值 0/1**。
+  - 約定：指定「正面類別」`pos_label`（如 `Yes`）→ 1，另一類 → 0；未指定則依 `sorted(unique)`：第一類 → 0、第二類 → 1。
+  - 在 `configs/*.yaml` 的 `task.target_positive_label` 記錄；轉換後再做 StratifiedKFold / 訓練 / 評估，預測機率對應「正面類別」的機率。
+- **Multiclass 分類**：
+  - 若為字串標籤，可用 `LabelEncoder` 或固定 mapping 轉成 0..K-1；mapping 須寫入 run artifacts，推論時一致還原。
+- **Regression**：
+  - **數值很大或右偏**：可對 target 做 `log1p`（`np.log1p(y)` = log(1+y)）再訓練，預測時用 `np.expm1(pred)` 還原；或依 EDA 選 `log`/`sqrt`/winsorize，並在 doc 與 params 中註明。
+  - **非負且含 0**：優先 `log1p`，避免 log(0)。
+  - 轉換與還原必須在 pipeline 中固定（train/valid/test 同一套），metric 若在原尺度計算，須在還原後再算。
+- **記錄**：
+  - 在 `04_modeling.md` 本節填寫：本專案採用的 target 轉換（binary 的 pos_label、regression 的 log1p 與否等）。
+  - 在 `runs/<run_id>/params.json` 或 `artifacts/target_mapping.json` 中落地，供 evaluate / infer 與還原使用。
+
 ## 3) Model Families & When to Use
 ### Classification (binary / multiclass)
 - objectives: logistic / softmax

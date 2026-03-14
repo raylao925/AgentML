@@ -21,9 +21,9 @@
 - `runs/<run_id>/artifacts/`（按需要）
   - `model.*`（可為 pkl / cbm / txt / onnx 等）
   - `feature_list.json`
-  - `oof_predictions.*`（建議 parquet/csv）
-  - `test_predictions.*`（只有 final/提交時才允許）
-- `runs/<run_id>/plots/`（可選）
+  - `oof_predictions.*`（建議 csv parquet/csv）
+  - `test_prediction.*`（inference執行後, 建議 csv）
+- `runs/<run_id>/plots/`（至少要有feature importance）
   - 重要圖（feature importance、ROC、PR、residuals、calibration curve、time split diagnostics）
 
 > 建議：所有路徑都以 project root 作相對路徑，避免搬 project 時失效。

@@ -33,10 +33,11 @@ projects/<project_slug>/
 
   src/
     data.py                  # load/clean/split（遵守 docs/03_cv_strategy.md）
-    features.py              # 特徵工程（必須 fold-safe）
-    train.py                 # 訓練入口（讀 configs）
-    evaluate.py              # metric 計算（口徑固定）
-    infer.py                 # 推理/輸出 submission
+    features.py              # 特徵工程（必須 fold-safe；支援手工 + auto feature）
+    train.py                 # 訓練入口（讀 configs，寫 runs/<run_id> + results.json）
+    evaluate.py              # metric 計算（口徑固定；重算 OOF 指標）
+    infer.py                 # 推理/輸出 submission（依 data.id_cols 加上 prediction）
+    ensemble.py              # （可選）ensemble 入口，依 05_ensemble.md 使用 OOF 做 stacking/blending
 
   data/
     raw/                     # 原始資料（通常 gitignore）

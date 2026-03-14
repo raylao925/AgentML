@@ -2,6 +2,7 @@
 
 ## Dataset Overview
 - Source: {{SOURCE}}
+- Source Path: {{SOURCE_PATH}}
 - Owner / Contact: {{CONTACT}}
 - Data versioning:
   - Raw snapshot: {{RAW_SNAPSHOT_ID}}

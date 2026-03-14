@@ -34,12 +34,13 @@ features:
   feature_set_id: "fs_baseline_v1"
   # Feature flags 俾 agent 開關（配合 search_space.yaml）
   flags:
-    use_scaler: false
+    use_scaler: true
     use_onehot: true
     use_target_encoding: false
     use_lag_features: false
     use_rolling_features: false
     use_group_aggregations: false
+    use_featuretools: true
   params:
     target_encoding:
       smoothing: 10
@@ -49,6 +50,10 @@ features:
     rolling_features:
       windows: [7, 14, 28]
       stats: ["mean", "std"]
+    featuretools:
+      trans_primitives: ["day", "month", "year"]
+      agg_primitives: ["mean", "std", "max", "min", "sum", "count"]
+      max_depth: 1
 
 model:
   name: "LightGBM"                 # LightGBM | XGBoost | CatBoost | LogisticRegression | ElasticNet | LGBMRanker | XGBRanker

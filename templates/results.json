@@ -1,0 +1,88 @@
+[
+  {
+    "run_id": "YYYYMMDD_HHMM_model_desc",
+    "datetime": "2026-03-14T01:23:45+08:00",
+
+    "task": {
+      "family": "classification_binary",
+      "target": "Churn",
+      "primary_metric": "AUC",
+      "secondary_metrics": ["LogLoss", "Brier"]
+    },
+
+    "data": {
+      "data_version": "raw_snapshot_YYYYMMDD",
+      "row_count_train": 1000,
+      "row_count_valid": 250,
+      "schema_hash": "sha1:example1234",
+      "leakage_policy_ref": "docs/01_data_card.md"
+    },
+
+    "cv": {
+      "cv_type": "StratifiedKFold",
+      "n_splits": 5,
+      "random_state": 42,
+      "group_key": null,
+      "time_col": null,
+      "gap_or_embargo": null
+    },
+
+    "features": {
+      "feature_set_id": "fs_baseline_v1",
+      "feature_flags": {
+        "use_scaler": false,
+        "use_onehot": true,
+        "use_target_encoding": false,
+        "use_lag_features": false,
+        "use_rolling_features": false,
+        "use_group_aggregations": false
+      },
+      "dropped_columns": []
+    },
+
+    "model": {
+      "name": "LightGBM",
+      "objective": "binary",
+      "params": {
+        "learning_rate": 0.05,
+        "n_estimators": 2000
+      }
+    },
+
+    "metrics": {
+      "primary": {
+        "name": "AUC",
+        "mean": 0.80,
+        "std": 0.01,
+        "per_fold": [0.79, 0.81, 0.80, 0.80, 0.80]
+      },
+      "secondary": {
+        "LogLoss_mean": 0.40,
+        "Brier_mean": 0.13
+      }
+    },
+
+    "resources": {
+      "train_seconds": 123.4
+    },
+
+    "artifacts": {
+      "run_dir": "runs/YYYYMMDD_HHMM_model_desc",
+      "params_path": "runs/YYYYMMDD_HHMM_model_desc/params.json",
+      "metrics_path": "runs/YYYYMMDD_HHMM_model_desc/metrics.json",
+      "notes_path": "runs/YYYYMMDD_HHMM_model_desc/notes.md",
+      "model_path": "runs/YYYYMMDD_HHMM_model_desc/artifacts/model.pkl",
+      "oof_path": "runs/YYYYMMDD_HHMM_model_desc/artifacts/oof_predictions.parquet",
+      "plots_dir": "runs/YYYYMMDD_HHMM_model_desc/plots/"
+    },
+
+    "decision": {
+      "status": "keep",
+      "rule_version": "keep_discard_v1",
+      "reason": "Example record — real runs should append after this."
+    },
+
+    "notes_short": "Template example; agents should append real runs after this object."
+  }
+]
+
