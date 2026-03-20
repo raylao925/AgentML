@@ -22,7 +22,7 @@ ClawML/
     AGENT_RULES.md
     configs/          # baseline.yaml, search_space.yaml
     doc/              # 00-07 markdown templates
-    src/              # data.py, features.py, train.py, evaluate.py, infer.py, ensemble.py
+    src/              # data.py, features.py, train.py, evaluate.py, infer.py, ensemble.py, train_multi_model.py, infer_ensemble.py
 
   projects/           # Per-dataset project folders (see structure.md)
     <project_slug>/

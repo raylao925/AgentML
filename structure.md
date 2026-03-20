@@ -37,7 +37,9 @@ projects/<project_slug>/
     train.py                 # Training entry (reads configs, writes runs/<run_id> + results.json)
     evaluate.py              # Metric computation (fixed definition; recompute OOF metrics)
     infer.py                 # Inference/submission output (add prediction per data.id_cols)
+    train_multi_model.py     # Multi-model training: train multiple models in sequence for comparison
     ensemble.py              # (Optional) Ensemble entry, per docs/05_ensemble.md OOF stacking/blending
+    infer_ensemble.py        # Ensemble inference with hill climbing weight optimization
 
   data/
     raw/                     # Raw data (usually gitignored)

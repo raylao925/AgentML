@@ -47,9 +47,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import data as data_mod
-from . import evaluate as eval_mod
-from . import features as feat_mod
+import data as data_mod
+import evaluate as eval_mod
+import features as feat_mod
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

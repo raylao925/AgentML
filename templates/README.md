@@ -62,8 +62,22 @@ After this template is copied to `projects/<project_slug>/`, the expected `src/`
   - Entry: `python src/infer.py --run_id <run_id> [--output ...]`.
   - Load `artifacts/model.pkl` and config `data.id_cols`; run inference on test; produce submission (default `artifacts/submission.csv` with id + prediction).
 
+- `train_multi_model.py` (*multi-model training*)
+  - Entry: `python src/train_multi_model.py --config configs/baseline.yaml [--models "LightGBM,XGBoost"] [--run_id_prefix ...]`.
+  - Train multiple models in sequence for comparison.
+  - Supports: LightGBM, XGBoost, CatBoost, LogisticRegression, ElasticNet.
+  - Produces separate run directories for each model with OOF predictions and metrics.
+  - Summary table shows all models ranked by primary metric.
+
 - `ensemble.py` (*optional*)
   - Use as ensemble entry: read `runs/*/artifacts/oof_predictions.*` and `metrics.json`; per `docs/05_ensemble.md` produce weighted average or stacking; write to new `runs/<run_id_ensemble>/` and `results.json`.
+
+- `infer_ensemble.py` (*ensemble inference*)
+  - Entry: `python src/infer_ensemble.py --ensemble_run_id <run_id> [--optimize_weights]`.
+  - Load multiple models from ensemble run and generate combined predictions.
+  - Supports `--optimize_weights` flag to use hill climbing algorithm for weight optimization.
+  - Hill climbing iteratively adjusts weights to maximize AUC on OOF predictions.
+  - Produces `submission.csv` with ensemble predictions.
 
 > Recommendations for OpenClaw / Agent:  
 > - Drive experiments via `configs/*.yaml`, `docs/*`, `src/train.py`, `src/ensemble.py` only.  

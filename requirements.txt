@@ -8,3 +8,5 @@ pyarrow>=15.0
 PyYAML>=6.0
 featuretools>=1.31.0
 pycaret>=3.3.0
+catboost>=1.2.1
+xgboost>=3.2.0

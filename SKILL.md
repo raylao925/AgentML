@@ -174,11 +174,44 @@ Output: `runs/<run_id>/artifacts/submission.csv`.
 ---
 
 ## 11) Ensemble Over Runs (OOF-safe)
-- Read multiple runs’ OOF artifacts only.
+- Read multiple runs' OOF artifacts only.
 - Train meta-model / choose weights using OOF design (no leakage from test).
 - Produce ensemble artifacts into a new run directory.
 
 Output: ensemble `submission` and ensemble metrics record in `results.json`.
+
+## 11.5) Multi-Model Training
+- Train multiple models in sequence for comparison using `train_multi_model.py`.
+- Supports: LightGBM, XGBoost, CatBoost, LogisticRegression, ElasticNet.
+- Each model gets its own run directory with OOF predictions and metrics.
+- Summary table shows all models ranked by primary metric for easy comparison.
+
+Usage:
+```bash
+python src/train_multi_model.py --config configs/baseline.yaml
+python src/train_multi_model.py --config configs/baseline.yaml --models "LightGBM,XGBoost"
+```
+
+Output: Multiple run directories with individual model artifacts and a comparison summary.
+
+## 11.6) Ensemble Inference with Hill Climbing
+- Load multiple trained models from an ensemble run using `infer_ensemble.py`.
+- Generate combined predictions using weighted average.
+- Supports `--optimize_weights` flag for hill climbing algorithm.
+
+**Hill Climbing Algorithm**:
+- Iteratively adjusts model weights to maximize AUC on OOF predictions.
+- Starts with uniform weights and perturbs them randomly.
+- Accepts weight changes that improve AUC, rejects those that don't.
+- Converges to optimal weight combination after multiple iterations.
+
+Usage:
+```bash
+python src/infer_ensemble.py --ensemble_run_id <run_id>
+python src/infer_ensemble.py --ensemble_run_id <run_id> --optimize_weights
+```
+
+Output: `submission.csv` with ensemble predictions and optimized weights metadata.
 
 ---
 
