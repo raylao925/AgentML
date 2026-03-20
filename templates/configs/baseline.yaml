@@ -8,31 +8,31 @@ task:
   family: "classification_binary"  # classification_binary | classification_multiclass | regression | ranking | time_series
   target: "{{TARGET_COLUMN}}"
   primary_metric: "AUC"            # AUC | LogLoss | RMSE | MAE | NDCG@10 | MAP@K ...
-  metric_higher_is_better: true    # regression RMSE/MAE 通常 false
+  metric_higher_is_better: true    # usually false for regression RMSE/MAE
   secondary_metrics: ["LogLoss", "Brier"]
 
 data:
   data_version: "raw_snapshot_YYYYMMDD"
   train_path: "data/processed/train.parquet"
   test_path:  "data/processed/test.parquet"
-  time_col: null                  # time-series / time-based split 用，例如 "event_date"
-  group_key: null                 # GroupKFold / ranking query_id 用，例如 "customer_id" 或 "query_id"
-  id_cols: ["{{ID_COL}}"]         # 可選：用於 join / 排除
-  drop_cols: []                   # 明確禁止使用（含 leakage 欄位）
+  time_col: null                  # for time-series / time-based split, e.g. "event_date"
+  group_key: null                 # for GroupKFold / ranking query_id, e.g. "customer_id" or "query_id"
+  id_cols: ["{{ID_COL}}"]         # optional: for join / exclude
+  drop_cols: []                   # explicitly forbidden (incl. leakage columns)
 
 cv:
   cv_type: "StratifiedKFold"       # StratifiedKFold | KFold | GroupKFold | TimeSeriesSplit | CustomTimeFolds
   n_splits: 5
   shuffle: true
   random_state: 42
-  stratify_col: "{{TARGET_COLUMN}}"  # classification 常用
+  stratify_col: "{{TARGET_COLUMN}}"  # common for classification
   time_col: null
   group_key: null
-  gap_or_embargo: null             # time-series 可用，例如 "7d"
+  gap_or_embargo: null             # for time-series, e.g. "7d"
 
 features:
   feature_set_id: "fs_baseline_v1"
-  # Feature flags 俾 agent 開關（配合 search_space.yaml）
+  # Feature flags for agent to toggle (see search_space.yaml)
   flags:
     use_scaler: true
     use_onehot: true
@@ -71,7 +71,7 @@ model:
 training:
   early_stopping: true
   early_stopping_rounds: 200
-  eval_at: [10]                    # ranking 任務用（NDCG@10）
+  eval_at: [10]                    # for ranking tasks (NDCG@10)
   num_boost_round: 2000
   verbose: 50
 

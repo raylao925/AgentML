@@ -1,50 +1,50 @@
 # 06 — Experiment Log (Ledger + Run Artifacts)
 
-> 目的：
-> - `results.json`：存放「結構化」實驗紀錄（給 agent/程式解析、排序、挑 best run）
-> - `runs/<run_id>/`：存放每次 run 的完整產物（params / metrics / artifacts / notes）
+> Purpose:
+> - `results.json`: structured experiment records (for agent/script parsing, ranking, picking best run)
+> - `runs/<run_id>/`: full artifacts per run (params / metrics / artifacts / notes)
 >
-> 原則：**每一次 run（KEEP 或 DISCARD）都必須落地記錄**，確保可追溯、可重現、可比較。
+> Principle: **Every run (KEEP or DISCARD) must be logged** for traceability, reproducibility, and comparability.
 
 ---
 
 ## A) Run Folder Contract (Must Produce)
 
-每次實驗必須建立一個 folder：`runs/<run_id>/`，最少包含：
+Each experiment must create a folder `runs/<run_id>/` with at least:
 
 - `runs/<run_id>/params.json`  
-  - 實際生效的 config（含 model / CV / feature flags / seed）
+  - Effective config (model / CV / feature flags / seed)
 - `runs/<run_id>/metrics.json`  
-  - per-fold 指標 + 聚合（mean/std）+ 重要診斷（如 calibration / ndcg@k breakdown）
+  - per-fold metrics + aggregate (mean/std) + key diagnostics (calibration / ndcg@k breakdown)
 - `runs/<run_id>/notes.md`  
-  - 必須包含：Hypothesis、What changed、Why、Outcome、Decision、Next step
-- `runs/<run_id>/artifacts/`（按需要）
-  - `model.*`（可為 pkl / cbm / txt / onnx 等）
+  - Must include: Hypothesis, What changed, Why, Outcome, Decision, Next step
+- `runs/<run_id>/artifacts/` (as needed)
+  - `model.*` (pkl / cbm / txt / onnx etc.)
   - `feature_list.json`
-  - `oof_predictions.*`（建議 csv parquet/csv）
-  - `test_prediction.*`（inference執行後, 建議 csv）
-- `runs/<run_id>/plots/`（至少要有feature importance）
-  - 重要圖（feature importance、ROC、PR、residuals、calibration curve、time split diagnostics）
+  - `oof_predictions.*` (parquet or csv recommended)
+  - `test_prediction.*` (after inference, csv recommended)
+- `runs/<run_id>/plots/` (at least feature importance)
+  - Key plots (feature importance, ROC, PR, residuals, calibration curve, time split diagnostics)
 
-> 建議：所有路徑都以 project root 作相對路徑，避免搬 project 時失效。
+> Tip: Use paths relative to project root to avoid breakage when moving the project.
 
 ---
 
 ## B) Ledger File: `results.json`
 
-- 檔案位置：`projects/<project_slug>/results.json`
-- 檔案格式：**JSON Array**（每個元素 = 一次 run 的 record）
-- 更新策略：**append-only**（只追加，不覆蓋歷史；如需修正，新增 correction 記錄並註明）
-- 排序建議：依 `datetime` 由舊到新（或由新到舊，但要固定一種）
-- 最小要求：任何 run 都要寫入一筆 record（KEEP / DISCARD 都一樣）
+- Location: `projects/<project_slug>/results.json`
+- Format: **JSON Array** (each element = one run record)
+- Update policy: **append-only** (append only, never overwrite history; add correction record if needed)
+- Sort: by `datetime` old→new (or new→old, but keep consistent)
+- Minimum: every run must write one record (KEEP or DISCARD)
 
-> NOTE（可選）：如你需要「更容易 append & 支援並發」，可以改用 `results.jsonl`（每行一個 JSON object），但本 project 先以 `results.json` 為主。
+> NOTE (optional): For easier append and concurrency, use `results.jsonl` (one JSON object per line); this project uses `results.json` by default.
 
 ---
 
 ## C) `results.json` Schema (Recommended)
 
-每個 record **必須**包含下列欄位（可按需要增減，但建議保留核心欄位）：
+Each record **must** include these fields (add/remove as needed, but keep core fields):
 
 ```json
 {
@@ -138,12 +138,12 @@
 
 ### C.1) Task-specific Add-ons (Optional)
 
-#### Ranking 任務建議加：
-- `task.query_key`（例如 query_id / session_id）
-- `metrics.primary.per_query`（如你要存更細）
-- `model.objective`（pairwise/listwise、ndcg）
+#### Ranking tasks—suggested add-ons:
+- `task.query_key` (e.g. query_id / session_id)
+- `metrics.primary.per_query` (if storing finer detail)
+- `model.objective` (pairwise/listwise, ndcg)
 
-#### Time-series 任務建議加：
+#### Time-series tasks—suggested add-ons:
 - `cv.time_col`、`cv.gap_or_embargo`
 - `task.horizon`
 - `data.time_range_train/valid`
@@ -152,55 +152,55 @@
 
 ## D) Keep/Discard Rule (Default)
 
-> 目標：讓 agent 可以**自動**、**一致**、**可審計**地決策，避免主觀判斷。
+> Goal: enable **automatic**, **consistent**, **auditable** decisions and avoid subjective judgment.
 
 ### D.1 Default Decision Logic
 
-1) 找到目前 `results.json` 中 **best KEEP** 的基準（按 `metrics.primary.mean` 排序；ranking/regression 需按方向）
-2) 計算本 run 與 best baseline 的差異：`delta = new_mean - best_mean`（或 RMSE 用 best_mean - new_mean）
-3) 按以下規則判斷：
+1) Find the **best KEEP** baseline in `results.json` (sort by `metrics.primary.mean`; ranking/regression by direction)
+2) Compute delta vs best baseline: `delta = new_mean - best_mean` (or for RMSE: best_mean - new_mean)
+3) Apply rules:
 
-#### ✅ KEEP（預設）
+#### ✅ KEEP (default)
 - `delta >= improve_threshold`
-- 且 `std` 沒有顯著惡化（例如 std 增幅 <= 20%）
-- 且 `resources` 不超出上限（train/infer/memory/model_size）
+- and `std` not significantly worse (e.g. std increase <= 20%)
+- and `resources` within limits (train/infer/memory/model_size)
 
-#### ✅ KEEP（Tie-break，預設可選）
+#### ✅ KEEP (Tie-break, optional)
 - `abs(delta) <= tie_margin`
-- 但 secondary 指標明顯改善（例如 LogLoss/Brier/latency）
-- 且未違反任何硬約束（尤其 leakage / test rule）
+- but secondary metrics clearly improve (LogLoss/Brier/latency)
+- and no hard constraint violated (especially leakage / test rule)
 
-#### ❌ DISCARD（預設）
-- 不滿足 KEEP 條件，或
-- 出現任何 leakage 風險 / CV 規則違反 / 使用 test 調參
+#### ❌ DISCARD (default)
+- KEEP conditions not met, or
+- any leakage risk / CV rule violation / use of test for tuning
 
-### D.2 Suggested Defaults (可在 `AGENT_RULES.md` 覆寫)
-- `improve_threshold`：
+### D.2 Suggested Defaults (override in `AGENT_RULES.md`)
+- `improve_threshold`:
   - classification AUC: +0.001 ~ +0.002
-  - regression RMSE: 相對改善 ≥ 0.2%（或絕對值視 scale）
+  - regression RMSE: relative improvement ≥ 0.2% (or absolute per scale)
   - ranking NDCG@10: +0.002
-- `tie_margin`：0.0002（視資料量調整）
-- `resources limits`：由 project 在 `configs/baseline.yaml` 或 `AGENT_RULES.md` 指定
+- `tie_margin`: 0.0002 (adjust per data size)
+- `resources limits`: specified by project in `configs/baseline.yaml` or `AGENT_RULES.md`
 
 ---
 
 ## E) How to Write `results.json` (Append Policy)
 
-### E.1 Append-only 行為要求
-- 不覆蓋舊 record
-- 若 run 失敗（crash / timeout），也要寫入 record：
+### E.1 Append-only behavior
+- Do not overwrite existing records
+- If run fails (crash / timeout), still write a record:
   - `decision.status = "discard"`
   - `decision.reason = "runtime_error: ..."`
-  - `metrics` 可留空或寫 `null`
+  - `metrics` may be empty or `null`
 
 ### E.2 Minimal Required Fields
-任何 record 最少要有：
+Every record must have at least:
 - `run_id`
 - `datetime`
 - `task.family`
 - `cv.cv_type`
 - `model.name`
-- `metrics.primary.mean`（若成功）
+- `metrics.primary.mean` (if successful)
 - `decision.status`
 - `artifacts.run_dir`
 
@@ -208,7 +208,7 @@
 
 ## F) Companion File: `runs/<run_id>/notes.md` Template
 
-每個 run 的 notes.md 建議用以下格式：
+Recommended format for each run's notes.md:
 
 ```md
 # Run {{run_id}}
@@ -220,7 +220,7 @@
 - constraints:
 
 ## Hypothesis
-（我預期改動會令指標 ↑/↓，原因）
+(Expected direction of change and why)
 
 ## What Changed
 - files changed:
@@ -238,5 +238,5 @@
 - reason:
 
 ## Next Step
-（下一個最值得試的方向）
+(Next direction worth trying)
 ```

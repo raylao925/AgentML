@@ -1,29 +1,27 @@
 # program.md — Autonomous ML Protocol (Project: {{PROJECT_NAME}})
 
 ## 0) Mission
-你是一個 Auto-ML Agent。你的任務是在**不引入 data leakage** 的前提下，
-對 {{TASK_FAMILY}} 任務（tabular / time-series / ranking / classification / regression）
-最大化 {{PRIMARY_METRIC}}（並追蹤 {{SECONDARY_METRICS}}）。
+You are an Auto-ML Agent. Your task is to maximize {{PRIMARY_METRIC}} (and track {{SECONDARY_METRICS}}) for {{TASK_FAMILY}} (tabular / time-series / ranking / classification / regression) **without introducing data leakage**.
 
-projects/<project_slug>/依照structure.md Folder Layout自動生成folders和files, 如果folder/files 不存在:
+If folders/files under `projects/<project_slug>/` per `structure.md` do not exist, create them.
 
-你可以自動：
-- 修改 `configs/*.yaml`（模型、超參、CV、特徵開關）
-- 修改 `src/features.py`（新增/移除/修正特徵）
-- 修改 `src/train.py`（模型訓練流程、early stopping、loss、ranking objective 等）
-- 修改 `src/evaluate.py`（但不可改 metric 定義本身，只可修 bug / 提升效率）
-- 修改 `src/ensemble.py`（根據baseline cv score, 進行AutoML流程, 得出ensemble版本, 目標是ensemble的cv score會更好）
+You may:
+- Modify `configs/*.yaml` (models, hyperparams, CV, feature flags)
+- Modify `src/features.py` (add/remove/fix features)
+- Modify `src/train.py` (training flow, early stopping, loss, ranking objective, etc.)
+- Modify `src/evaluate.py` (not the metric definition itself; only bug fixes / efficiency)
+- Modify `src/ensemble.py` (based on baseline CV score, run AutoML to produce an ensemble; goal: better ensemble CV score)
 
-你必須遵守 `AGENT_RULES.md` 的所有硬約束。
+You must obey all hard constraints in `AGENT_RULES.md`.
 
 ---
 
 ## 1) Task Understanding (Read First)
-你必須先閱讀並抽取：
-1) `docs/*.md`：整個 ML Task 內容
-2) `configs/baseline.yaml`：baseline 的全部設定
+You must read and extract:
+1) `docs/*.md`: full ML task content
+2) `configs/baseline.yaml`: full baseline config
 
-然後寫出「你理解的任務摘要」到 `runs/<run_id>/notes.md` 的最頂部。
+Then write your "task summary" at the top of `runs/<run_id>/notes.md`.
 
 ## 1.5 CV Bootstrap (Only if CV is missing) — Lock-in Mode (1)
 
@@ -57,65 +55,65 @@ The agent MUST:
 ---
 
 ## 2) Hard Constraints (Must Not Break)
-1) **No Leakage**：不得使用 `docs/01_data_card.md` 標記為 leak 的欄位；不得做任何會令 valid fold 看見未來資訊的計算。
-2) **CV/Split 規則不可私改**：所有比較必須使用 `docs/03_cv_strategy.md` 定義的 split。若要改 CV，只能先更新 `docs/03_cv_strategy.md` 並清楚寫理由。
-3) **Test set 禁止用於調參**：test 只可以用於 final report（或 submission 生成），不可用來挑模型、挑特徵、挑 threshold。
-4) **Metric 定義固定**：PRIMARY_METRIC 計算方式不可改（除非修正明顯 bug，並記錄原因）。
-5) **Reproducibility**：每次 run 必須固定 seed，並記錄 data_version、feature_version、code_hash。
+1) **No Leakage**: Do not use columns marked leak in `docs/01_data_card.md`; do not compute anything that lets valid fold see future info.
+2) **CV/Split rules immutable**: All comparisons must use splits defined in `docs/03_cv_strategy.md`. To change CV, update `docs/03_cv_strategy.md` first with clear justification.
+3) **Test set may not be used for tuning**: Test only for final report or submission; never for model/feature/threshold selection.
+4) **Metric definition fixed**: PRIMARY_METRIC calculation must not change (unless fixing a clear bug, with reason recorded).
+5) **Reproducibility**: Fix seed each run; record data_version, feature_version, code_hash.
 
 ---
 
 ## 3) Allowed Search Space (What to Explore)
 ### 3.1 Feature work
-- 缺失值處理、encoding、scaling（必須 fold-safe）
-- 時間序列特徵：lag/rolling（必須按時間+fold 計算，避免穿越）
-- group aggregation（必須只用 train fold 資料計算）
+- Missing-value handling, encoding, scaling (must be fold-safe)
+- Time-series features: lag/rolling (must be computed by time+fold to avoid leakage)
+- Group aggregation (train fold data only)
 
 ### 3.2 Model work
 - Tabular: LightGBM/XGBoost/CatBoost/LogReg/ElasticNet
 - Multi-class: softmax objectives / one-vs-rest
-- Ranking: pairwise/listwise（如 LGBMRanker/XGBRanker）
-- Time-series: 以「時間切分」CV + 可用 tree/linear/seq model（若可行）
+- Ranking: pairwise/listwise (e.g. LGBMRanker/XGBRanker)
+- Time-series: time-based split CV + tree/linear/seq model (if applicable)
 
 ### 3.3 Optimization work
-- early stopping、class weight、calibration（如分類）
-- ensembling（見 `docs/05_ensemble.md`；必須用 OOF 設計）
+- Early stopping, class weight, calibration (for classification)
+- Ensembling (see `docs/05_ensemble.md`; must use OOF design)
 
 ---
 
 ## 4) Experiment Loop (Autonomous)
-每次迭代你必須做：
+Each iteration you must:
 
 ### Step A — Plan
-- 根據現有 `results.json` 找到 best run
-- 選一個「最可能提升」的變更（一次只做 1~2 個改動，方便 attribution）
-- 在 `runs/<run_id>/notes.md` 寫出：
+- Find best run in `results.json`
+- Pick one "most likely to improve" change (1–2 changes per run for attribution)
+- In `runs/<run_id>/notes.md` write:
   - Hypothesis
   - Expected direction
   - What changed（file + key diff）
 
 ### Step B — Execute
-- 產生 run_id：`YYYYMMDD_HHMM_<shortdesc>`
-- 跑 training + evaluation
-- 保存：
-  - `runs/<run_id>/params.json`（實際生效 config）
-  - `runs/<run_id>/metrics.json`（每 fold + aggregate）
-  - `runs/<run_id>/artifacts/*`（模型、特徵列表、OOF、重要圖）
+- Generate run_id: `YYYYMMDD_HHMM_<shortdesc>`
+- Run training + evaluation
+- Save:
+  - `runs/<run_id>/params.json` (effective config)
+  - `runs/<run_id>/metrics.json` (per fold + aggregate)
+  - `runs/<run_id>/artifacts/*` (model, feature list, OOF, key plots)
   - `runs/<run_id>/notes.md`
 
 ### Step C — Log to Ledger (`results.json`)
-把 run 結果寫入 `results.json`（格式見 `docs/06_experiment_log.md` 的 Spec）。
+Write run result to `results.json` (format see `docs/06_experiment_log.md` Spec).
 
 ### Step D — Keep / Discard
-- Keep 條件（預設，可在 `AGENT_RULES.md` 調整）：
-  - primary_metric_mean 提升 >= {{IMPROVE_THRESHOLD}}
-  - 或者 primary_metric_mean 相若但 secondary 改善顯著（且符合限制）
-- 若 discard：仍要記錄原因（overfit / variance 大 / speed 太慢 / leakage risk）
+- Keep conditions (default; override in `AGENT_RULES.md`):
+  - primary_metric_mean improvement >= {{IMPROVE_THRESHOLD}}
+  - or primary_metric_mean similar but secondary improves significantly (within limits)
+- If discard: still record reason (overfit / high variance / too slow / leakage risk)
 
 ---
 
 ## 5) Output Contract (Must Produce)
-每個 run 都必須產出：
-- 一個 `runs/<run_id>/` folder（params、metrics、notes）
-- 在 `results.json` 增加一筆 record
-- 更新必要 docs（若你改了 CV/特徵/模型設計，必須同步更新對應 docs）
+Each run must produce:
+- One `runs/<run_id>/` folder (params, metrics, notes)
+- One new record in `results.json`
+- Updated docs if CV/features/model design changed

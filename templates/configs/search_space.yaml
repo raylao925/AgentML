@@ -1,12 +1,12 @@
 # configs/search_space.yaml
 policy:
-  # keep/discard 的預設門檻（可被 AGENT_RULES.md 覆寫）
+  # keep/discard default thresholds (override in AGENT_RULES.md)
   improve_threshold:
     classification_auc: 0.001
     ranking_ndcg10: 0.002
     regression_rmse_relative: 0.002     # 0.2%
   tie_margin: 0.0002
-  std_worsen_ratio_max: 1.2             # std 不能增加超過 20%
+  std_worsen_ratio_max: 1.2             # max allowed std increase 20%
   resources_limits:
     train_seconds_max: 1800
     infer_seconds_max: 5
@@ -19,7 +19,7 @@ allowed:
     classification_multiclass: ["LightGBM", "XGBoost", "CatBoost"]
     regression: ["LightGBM", "XGBoost", "CatBoost", "ElasticNet"]
     ranking: ["LGBMRanker", "XGBRanker"]
-    time_series: ["LightGBM", "XGBoost"]  # baseline 先用 tree，之後你可加 seq model
+    time_series: ["LightGBM", "XGBoost"]  # baseline uses tree; add seq model later if needed
 
   feature_flags:
     use_scaler: [true, false]
@@ -30,10 +30,10 @@ allowed:
     use_group_aggregations: [true, false]
 
 search:
-  # 每次 experiment 建議改動規模（配合 AGENT_RULES）
+  # suggested change size per experiment (see AGENT_RULES)
   max_changes_per_run: 2
 
-  # 超參空間：可用 type + range/list 表達
+  # hyperparam space: use type + range/list
   hyperparams:
     LightGBM:
       learning_rate: {type: "log_uniform", min: 0.01, max: 0.2}
@@ -56,10 +56,10 @@ search:
       num_leaves: {type: "int", min: 16, max: 256}
 
 guardrails:
-  # 明確禁止 agent 改動（避免破壞可比性）
+  # explicitly forbidden (avoid breaking comparability)
   forbidden_changes:
-    - "metric_definition"          # 不可改 metric 口徑
-    - "use_test_for_tuning"        # 不可用 test 做調參
+    - "metric_definition"          # do not change metric definition
+    - "use_test_for_tuning"        # do not use test for tuning
     - "cv_strategy_without_docs_update"
   require_docs_update_if_changed:
     - "cv"

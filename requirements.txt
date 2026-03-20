@@ -1,3 +1,5 @@
+# Base dependency set for AgentML / OpenClaw projects.
+# Install with: `uv pip install -r requirements.txt`
 numpy>=1.24
 pandas>=2.0
 scikit-learn>=1.3

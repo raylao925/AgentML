@@ -15,50 +15,69 @@
 - Ranking feature policy (if any): query-level features computed fold-safe
 
 ### 2.1 Feature Engineering (Create New Features)
-- Goal: 系統性地為 **數值 / 類別 / 日期時間 / 幾何型數值** 建立新特徵，同時保持 **fold-safe、不引入 leakage**。
-- Numeric（連續數值）:
-  - 比例 / 比值：例如 `x1 / (x2 + 1)`、占總額比例。
-  - 非線性變換：log / sqrt / clipping / winsorization（先在 EDA 中確認 heavy tail）。
-  - 交互項：`x1 * x2`、`x1 / x2`、bucket 後 one-hot 再與其他變數交互。
+- Goal: Systematically create new features for **numeric / categorical / datetime / geometric** columns while staying **fold-safe and avoiding leakage**.
+- Numeric (continuous):
+  - Ratios: e.g. `x1 / (x2 + 1)`, share of total.
+  - Nonlinear transforms: log / sqrt / clipping / winsorization (confirm heavy tail in EDA first).
+  - Interactions: `x1 * x2`, `x1 / x2`, bucket then one-hot and interact with other variables.
 - Categorical:
-  - 高基數欄位的 target encoding / count encoding（**必須 fold-safe**，只用 train fold 訓練 encoder）。
-  - 組合欄位：`country + device`、`channel + weekday` 等。
+  - Target encoding / count encoding for high-cardinality columns (**must be fold-safe**; fit encoder on train fold only).
+  - Combined columns: `country + device`, `channel + weekday`, etc.
 - Datetime:
-  - 週期性：hour-of-day / day-of-week / month-of-year，必要時加 sin/cos encoding。
-  - 相對時間：與某事件的天數差、距離當前時間的距離（必須避免穿越未來）。
-  - 滾動 / lag 特徵：`value_t-1`, `rolling_mean_7d`（在每 fold train window 內計算，再套用到 valid）。
-- Geometric / Spatial（如有座標、距離類欄位）:
-  - 距離：兩點間歐幾里得距離 / Haversine 距離。
-  - 方向：方位角 / quadrant。
-  - 區域聚合：以地理格網/行政區為單位的平均值、密度（**只能用 train fold 資料**）。
+  - Cyclical: hour-of-day / day-of-week / month-of-year; add sin/cos encoding if needed.
+  - Relative time: days since event, distance from current time (must avoid future leakage).
+  - Lag / rolling features: `value_t-1`, `rolling_mean_7d` (compute within each fold train window, then apply to valid).
+- Geometric / Spatial (if coordinates/distance columns exist):
+  - Distance: Euclidean / Haversine between points.
+  - Direction: bearing / quadrant.
+  - Area aggregates: mean, density by grid/admin unit (**train fold data only**).
 
 ### 2.2 Auto Feature / AutoML Libraries
-- 允許且建議在下列前提下使用自動化工具：
-  - **featuretools**：做自動化特徵合成（特別是多表 / 時序關係），但生成特徵必須：
-    - 以 **fold 為單位** fit（每個 train fold 單獨 fit，再 transform valid），避免泄漏。
-    - 以 pipeline 形式寫入 `src/features.py`，確保可重現。
-  - **pycaret**（或其他 AutoML 框架）：
-    - 可用於快速探索 baseline 模型與特徵組合。
-    - 若採用其中的 pipeline/特徵，需明確在本檔記錄：使用的設定、模型家族、重要參數，並在 `runs/<run_id>/params.json` 中落地。
-- 原則：
-  - Auto feature / AutoML 僅作為 **產生 candidate features / pipeline 的工具**，一旦決定採用，需在本 repo 中以明確的 sklearn/LightGBM pipeline 方式實作。
-  - 任意由這些工具產生的特徵，必須滿足 `AGENT_RULES.md` 的所有 fold-safe / no-leakage 要求。
+- Allowed and recommended under these conditions:
+  - **featuretools**: For automated feature synthesis (multi-table / time-series); generated features must:
+    - Be fit per **fold** (each train fold fit separately, then transform valid) to avoid leakage.
+    - Be written into `src/features.py` as a pipeline for reproducibility.
+  - **pycaret** (or other AutoML):
+    - Use for quick baseline and feature combo exploration.
+    - If adopting a pipeline/features: document settings, model family, key params in this doc and `runs/<run_id>/params.json`.
+- Principle:
+  - Auto feature / AutoML serves as a **candidate features / pipeline generator**; once adopted, implement as explicit sklearn/LightGBM pipeline in this repo.
+  - All generated features must satisfy `AGENT_RULES.md` fold-safe / no-leakage rules.
 
-### 2.3 Target 轉換（依任務與分布決定）
-- 目的：讓 target 符合模型與 metric 的假設（0/1、連續、尺度合理），並在 config / run 中明確記錄，推論時須還原。
-- **Binary 分類**：
-  - 若 target 為字串或類別（如 `Yes`/`No`、`0`/`1` 字串），**必須先轉成數值 0/1**。
-  - 約定：指定「正面類別」`pos_label`（如 `Yes`）→ 1，另一類 → 0；未指定則依 `sorted(unique)`：第一類 → 0、第二類 → 1。
-  - 在 `configs/*.yaml` 的 `task.target_positive_label` 記錄；轉換後再做 StratifiedKFold / 訓練 / 評估，預測機率對應「正面類別」的機率。
-- **Multiclass 分類**：
-  - 若為字串標籤，可用 `LabelEncoder` 或固定 mapping 轉成 0..K-1；mapping 須寫入 run artifacts，推論時一致還原。
-- **Regression**：
-  - **數值很大或右偏**：可對 target 做 `log1p`（`np.log1p(y)` = log(1+y)）再訓練，預測時用 `np.expm1(pred)` 還原；或依 EDA 選 `log`/`sqrt`/winsorize，並在 doc 與 params 中註明。
-  - **非負且含 0**：優先 `log1p`，避免 log(0)。
-  - 轉換與還原必須在 pipeline 中固定（train/valid/test 同一套），metric 若在原尺度計算，須在還原後再算。
-- **記錄**：
-  - 在 `04_modeling.md` 本節填寫：本專案採用的 target 轉換（binary 的 pos_label、regression 的 log1p 與否等）。
-  - 在 `runs/<run_id>/params.json` 或 `artifacts/target_mapping.json` 中落地，供 evaluate / infer 與還原使用。
+### 2.3 Data Wide Search (when minimal context)
+
+When the user **only drops a dataset** without filling `00_problem_statement.md` or `01_data_card.md`, the agent can run **Data Wide Search** to bootstrap context and strengthen feature engineering.
+
+**Triggers**:
+- Problem statement or Data Card is empty, placeholder-only, or missing.
+- User explicitly asks: "help me understand this data", "suggest features", "what can I do with this dataset?"
+
+**Flow**:
+1. **Infer minimal context from data**: `df.info()`, schema scan, sample rows; infer target, ID, datetime columns and task type.
+2. **Web / domain search**: If dataset/domain hints exist → search similar problems, Kaggle notebooks, domain best practices; collect feature candidates (ratios, aggregates, time transforms, encodings).
+3. **User–agent interaction**: Summarize findings and propose inferred target, task type, feature candidates; ask user to confirm or correct; update docs per feedback.
+4. **Document and implement**: Write inferred content into `docs/*`; record Data Wide Search findings and adopted hypotheses in this section.
+
+**This project's Data Wide Search record** (if executed):
+- Search keywords / sources:
+- Discovered feature candidates (and adoption status):
+- User confirmations / corrections:
+
+### 2.4 Target Transform (per task and distribution)
+- Purpose: Make target match model/metric assumptions (0/1, continuous, reasonable scale); record in config/run; invert at inference.
+- **Binary classification**:
+  - If target is string/category (e.g. `Yes`/`No`, `0`/`1` strings), **must convert to numeric 0/1 first**.
+  - Convention: `pos_label` (e.g. `Yes`) → 1, other → 0; if not specified use `sorted(unique)`: first → 0, second → 1.
+  - Record in `configs/*.yaml` `task.target_positive_label`; after conversion run StratifiedKFold / train / evaluate; predicted proba = positive class proba.
+- **Multiclass**:
+  - For string labels, use `LabelEncoder` or fixed mapping to 0..K-1; write mapping to run artifacts for consistent inference.
+- **Regression**:
+  - **Large or right-skewed values**: Apply `log1p` to target, train, then `np.expm1(pred)` at inference; or choose `log`/`sqrt`/winsorize per EDA and document in doc + params.
+  - **Non-negative with zeros**: Prefer `log1p` to avoid log(0).
+  - Transform and inverse must be fixed in pipeline (same for train/valid/test); if metric is in original scale, compute after inverse.
+- **Record**:
+  - In this section of `04_modeling.md`: target transform used (binary pos_label, regression log1p or not).
+  - In `runs/<run_id>/params.json` or `artifacts/target_mapping.json` for evaluate / infer.
 
 ## 3) Model Families & When to Use
 ### Classification (binary / multiclass)
@@ -82,7 +101,7 @@
 - horizon defined in problem statement
 
 ## 4) Hyperparameter Recording (Authoritative Format)
-每個模型都要記錄：
+Each model must record:
 - params:
 - training:
 - seed:
@@ -104,7 +123,7 @@
    - feature list + importance
 
 ## 6) Ablations
-每次 run 的 change 以「可追溯」方式記：
+Record each run's change in a traceable way:
 - Change:
 - Reason:
 - Expected impact:

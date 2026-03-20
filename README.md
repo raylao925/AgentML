@@ -1,22 +1,44 @@
-# ClawML
+# AgentML
 
-ClawML is an **OpenClaw-powered** framework for running AutoML as a structured, reproducible workflow.
+> [English](README.md) | [中文](README.zh-CN.md)
+
+AgentML is an **OpenClaw-powered, agent-based** framework for running AutoML as a structured, reproducible workflow.
 Each dataset/problem lives in an isolated project folder, governed by Markdown documents and logged via a machine-readable experiment ledger.
 
 ---
 
-## What ClawML Provides
+## Repo Overview
+
+```text
+ClawML/
+  README.md           # This file (English)
+  README.zh-CN.md     # Chinese version
+  SKILL.md            # Agent skills: project setup, CV, leakage, Data Wide Search, training, etc.
+  structure.md        # Project folder layout (agent-friendly)
+  projects.md         # Project index
+  requirements.txt    # Base dependencies (numpy, pandas, sklearn, lightgbm, etc.)
+
+  templates/          # Copy to projects/<project_slug>/ for new projects
+    AGENT_RULES.md
+    configs/          # baseline.yaml, search_space.yaml
+    doc/              # 00-07 markdown templates
+    src/              # data.py, features.py, train.py, evaluate.py, infer.py, ensemble.py
+
+  projects/           # Per-dataset project folders (see structure.md)
+    <project_slug>/
+```
+
+---
+
+## What AgentML Provides
 
 - **Per-dataset Project Isolation**: each dataset/problem becomes a standalone project folder with its own docs, configs, runs, and ledger.
 - **Markdown-driven Workflow**: consistent research structure across projects:
   - Problem Statement → Data Card → EDA → CV Strategy → Modeling → Ensemble → Deployment/Submission
-- **Autonomous Execution (Automation Level C)**:
-  - the agent reads `program.md` and can automatically modify **config / feature / model**
-- **Reproducible Experiments**:
-  - CV strategy is treated as authoritative and **locked** once established
-  - all runs produce consistent artifacts and structured logs
-- **Structured Ledger**:
-  - all runs append to `results.json` for easy filtering, ranking, and automation
+- **Autonomous Execution (Agent Automation)**: the agent reads `program.md` and can automatically modify **config / feature / model** within `search_space.yaml`.
+- **Data Wide Search**: when the user **only drops a dataset** without docs, the agent can perform web/domain search to bootstrap context and strengthen feature engineering (see below).
+- **Reproducible Experiments**: CV strategy is treated as authoritative and **locked** once established; all runs produce consistent artifacts and structured logs.
+- **Structured Ledger**: all runs append to `results.json` for easy filtering, ranking, and automation.
 
 ---
 
@@ -79,11 +101,11 @@ mkdir -p projects/<project_slug>/
 cp -r templates/. projects/<project_slug>/
 ```
 
-### 2) Fill in Authoritative Docs
-At minimum, complete:
+### 2) Fill in Authoritative Docs (or Use Data Wide Search)
 
-- `docs/00_problem_statement.md`
-- `docs/01_data_card.md`
+**Option A — Full control**: At minimum, complete `docs/00_problem_statement.md` and `docs/01_data_card.md`.
+
+**Option B — Minimal setup**: Drop your train/test data into `data/raw/` or `data/processed/` and run the agent. It will perform Data Wide Search to infer context, propose features, and interact with you to confirm (see "Data Wide Search" below).
 
 For CV, you have two options:
 - **User-specified**: fill `docs/03_cv_strategy.md` explicitly (recommended for strict control)
@@ -135,6 +157,19 @@ See `AGENT_RULES.md` for the full authority and lock-in policy.
 
 ---
 
+## Data Wide Search (Minimal Context Bootstrapping)
+
+When the user **only drops a dataset** into `projects/<project_slug>/data/` without filling `docs/00_problem_statement.md` or `01_data_card.md`, the agent can bootstrap context via **wide search**:
+
+1. **Infer from data**: Run `df.info()`, schema scan, sample rows; identify likely target, ID, datetime columns; guess task type.
+2. **Web / domain search**: Search for similar problems, Kaggle notebooks, domain best practices; collect feature ideas (ratios, aggregations, time transforms, encodings).
+3. **User–agent interaction**: Summarize findings; propose inferred target, task type, and feature candidates; ask user to confirm or correct.
+4. **Document and implement**: Write inferred content into `docs/*`; add the "Data Wide Search" subsection to `docs/04_modeling.md`; implement fold-safe features in `src/features.py`.
+
+See `SKILL.md` §1.5 and `templates/doc/04_modeling.md` §2.3 for the full protocol.
+
+---
+
 ## Experiment Tracking
 
 ### Ledger
@@ -166,4 +201,4 @@ The ledger enables:
 
 ## Project Index
 
-See `PROJECTS.md` for a list of all projects.
+See `projects.md` for a list of all projects.

@@ -13,7 +13,7 @@
 - Feature count: {{N_FEATURES}}
 - Time range (if applicable): {{TIME_RANGE}}
 
-詳見：`docs/01_data_card.md`
+See `docs/01_data_card.md` for details.
 
 ## 3) Approach Summary
 - Baseline: {{BASELINE_MODEL}}
@@ -28,43 +28,43 @@
 - Infer: `python src/infer.py --model runs/<run_id>/artifacts/model.pkl --input ...`
 
 ## 5) Results
-- Ledger: `results.json`  （append-only，schema 見 `docs/06_experiment_log.md`）
+- Ledger: `results.json` (append-only; schema in `docs/06_experiment_log.md`)
 - Artifacts: `runs/<run_id>/`
 
 ---
 
-## 6) Src Contract（給 Agent 的程式介面）
+## 6) Src Contract (Programmatic Interface for Agent)
 
-當本範本被複製到 `projects/<project_slug>/` 後，預期的 `src/` 介面為：
+After this template is copied to `projects/<project_slug>/`, the expected `src/` interface:
 
 - `data.py`
-  - 讀取 `configs/baseline.yaml` 的 `data` 與 `cv` 區塊。
-  - 依 `docs/03_cv_strategy.md` 建立 folds（StratifiedKFold / GroupKFold / TimeSeriesSplit 等）。
-  - 僅允許在這裡做 split / schema 探勘 / profiling，不可在其他模組私改 CV 規則。
+  - Read `data` and `cv` blocks from `configs/baseline.yaml`.
+  - Build folds per `docs/03_cv_strategy.md` (StratifiedKFold / GroupKFold / TimeSeriesSplit, etc.).
+  - Split / schema exploration / profiling only here; do not change CV rules elsewhere.
 
 - `features.py`
-  - 依 `features.flags` 與 `features.params` 構建 **fold-safe** 特徵 pipeline。
-  - 開關包含：scaler / onehot / target encoding / featuretools（auto feature）等。
-  - 只能使用 train fold fit、再對 valid/test transform，嚴禁 leakage。
+  - Build **fold-safe** feature pipeline from `features.flags` and `features.params`.
+  - Flags: scaler / onehot / target encoding / featuretools (auto feature), etc.
+  - Fit on train fold only; transform valid/test; no leakage.
 
 - `train.py`
-  - 入口：`python src/train.py --config configs/baseline.yaml [--run_id ...]`。
-  - 流程：讀 baseline config → 載入資料 → 建 folds → 跑 CV → 寫入：
-    - `runs/<run_id>/params.json`、`metrics.json`、`notes.md`
-    - `runs/<run_id>/artifacts/*`（model、OOF、feature_list、dataset_profile_* 等）
-  - 同時 append 一筆 record 到 `results.json`。
+  - Entry: `python src/train.py --config configs/baseline.yaml [--run_id ...]`.
+  - Flow: read baseline config → load data → build folds → run CV → write:
+    - `runs/<run_id>/params.json`, `metrics.json`, `notes.md`
+    - `runs/<run_id>/artifacts/*` (model, OOF, feature_list, dataset_profile_*, etc.)
+  - Append one record to `results.json`.
 
 - `evaluate.py`
-  - 入口：`python src/evaluate.py --run_id <run_id>`。
-  - 從 `runs/<run_id>/artifacts/oof_predictions.*` 讀 OOF，重算 primary/secondary metrics（metric 定義固定）。
+  - Entry: `python src/evaluate.py --run_id <run_id>`.
+  - Read OOF from `runs/<run_id>/artifacts/oof_predictions.*`; recompute primary/secondary metrics (metric definition fixed).
 
 - `infer.py`
-  - 入口：`python src/infer.py --run_id <run_id> [--output ...]`。
-  - 讀 `artifacts/model.pkl` 與 config 的 `data.id_cols`，對 test 做推論並產生 submission（預設 `artifacts/submission.csv`，含 id + prediction）。
+  - Entry: `python src/infer.py --run_id <run_id> [--output ...]`.
+  - Load `artifacts/model.pkl` and config `data.id_cols`; run inference on test; produce submission (default `artifacts/submission.csv` with id + prediction).
 
-- `ensemble.py`（*可選*）
-  - 建議做為 ensemble 入口：只讀 `runs/*/artifacts/oof_predictions.*` 與 `metrics.json`，依 `docs/05_ensemble.md` 產生加權平均或 stacking，並寫入新的 `runs/<run_id_ensemble>/` 與 `results.json`。
+- `ensemble.py` (*optional*)
+  - Use as ensemble entry: read `runs/*/artifacts/oof_predictions.*` and `metrics.json`; per `docs/05_ensemble.md` produce weighted average or stacking; write to new `runs/<run_id_ensemble>/` and `results.json`.
 
-> 對 OpenClaw / Agent 的建議：  
-> - 儘量只透過 `configs/*.yaml`、`docs/*` 與 `src/train.py`、`src/ensemble.py` 介面來驅動實驗。  
-> - 避免直接改動 metric 定義、CV 實作或 ledger 格式。
+> Recommendations for OpenClaw / Agent:  
+> - Drive experiments via `configs/*.yaml`, `docs/*`, `src/train.py`, `src/ensemble.py` only.  
+> - Avoid changing metric definition, CV implementation, or ledger format directly.
