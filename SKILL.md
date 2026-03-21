@@ -225,3 +225,26 @@ Output: `submission.csv` with ensemble predictions and optimized weights metadat
 
 Output: deterministic enough runs to reproduce the same artifacts under same data + config.
 
+## 13) Memory Management & Debugging Documentation
+- **Session Start**: Read `memory/MEMORY.md` to restore context from previous sessions
+- **During Problem Solving**:
+  - Update `memory/MEMORY.md` with key decisions, user preferences, and constraints
+  - Write to `memory/debugging.md` when encountering errors or debugging issues
+- **Memory.md Content**:
+  - Project goals and constraints
+  - User preferences and feedback
+  - Key decisions and their rationale
+  - Important context for future sessions
+- **debugging.md Content**:
+  - Error messages and stack traces
+  - Failed approaches and why they failed
+  - Solutions that worked
+  - Code snippets for reference
+- **Best Practices**:
+  - Keep MEMORY.md concise and focused on context
+  - Keep debugging.md technical and detailed
+  - Update both files proactively during problem-solving
+  - Reference these files when resuming work
+
+Output: Continuity across sessions and documented debugging process.
+

@@ -52,6 +52,10 @@ projects/<project_slug>/
   AGENT_RULES.md             # 不可違反規則（leakage/CV/test/logging）
   README.md                  # 專案概覽（人類閱讀）
 
+  memory/                    # 記憶與除錯上下文
+    MEMORY.md                # 持續對話上下文
+    debugging.md             # 除錯日誌與疑難排解
+
   docs/
     00_problem_statement.md  # 任務定義（tabular/time-series/ranking/multiclass/binary）
     01_data_card.md          # Data schema + leakage checklist

@@ -2,7 +2,9 @@
 project:
   name: "{{PROJECT_NAME}}"
   run_tag: "baseline"
-  seed: 42
+  seed: 42  # Default seed, used as fallback
+  # Per-model seeds for ensemble diversity (useful for hill climbing)
+  seed_list: [42,123,456,789,1024,2048]
 
 task:
   family: "classification_binary"  # classification_binary | classification_multiclass | regression | ranking | time_series
@@ -22,7 +24,7 @@ data:
 
 cv:
   cv_type: "StratifiedKFold"       # StratifiedKFold | KFold | GroupKFold | TimeSeriesSplit | CustomTimeFolds
-  n_splits: 5
+  n_splits: 3
   shuffle: true
   random_state: 42
   stratify_col: "{{TARGET_COLUMN}}"  # common for classification
@@ -70,10 +72,10 @@ model:
 
 training:
   early_stopping: true
-  early_stopping_rounds: 200
+  early_stopping_rounds: 50
   eval_at: [10]                    # for ranking tasks (NDCG@10)
   num_boost_round: 2000
-  verbose: 50
+  verbose: 100
 
 output:
   results_path: "results.json"

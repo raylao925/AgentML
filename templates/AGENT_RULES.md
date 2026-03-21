@@ -64,3 +64,17 @@ Any CV change (only allowed via user request) MUST:
 ## 6) Logging Rule
 - Every run (keep or discard) must be written to `results.json`
 - Each run must have `runs/<run_id>/notes.md` with hypothesis / change / outcome / next step
+
+## 7) Memory & Debugging Rule
+- **MEMORY.md**: Persistent conversation context
+  - Store key decisions, user preferences, and project constraints
+  - Maintain continuity across sessions
+  - Update when significant context changes occur
+- **debugging.md**: Debug and troubleshooting logs
+  - Record error messages, stack traces, and debugging steps
+  - Document failed attempts and solutions found
+  - Include code snippets that caused issues and their fixes
+- Agent responsibilities:
+  - Read memory files at session start to restore context
+  - Write important decisions and debugging info during problem-solving
+  - Keep debugging.md focused on technical issues, MEMORY.md on context

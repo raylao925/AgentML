@@ -31,6 +31,13 @@ See `docs/01_data_card.md` for details.
 - Ledger: `results.json` (append-only; schema in `docs/06_experiment_log.md`)
 - Artifacts: `runs/<run_id>/`
 
+## 6) Memory & Debugging
+- **Memory directory**: `memory/`
+  - `MEMORY.md`: Persistent conversation context and key decisions
+  - `debugging.md`: Debug logs, error traces, and troubleshooting notes
+- Purpose: Track agent reasoning, preserve context across sessions, and document debugging process
+- Agent usage: Read/write to these files during problem-solving to maintain continuity
+
 ---
 
 ## 6) Src Contract (Programmatic Interface for Agent)

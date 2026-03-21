@@ -52,6 +52,10 @@ projects/<project_slug>/
   AGENT_RULES.md             # Non-negotiable rules (leakage/CV/test/logging)
   README.md                  # Project overview (human-friendly)
 
+  memory/                    # Memory & debugging context
+    MEMORY.md                # Persistent conversation context
+    debugging.md             # Debug logs and troubleshooting
+
   docs/
     00_problem_statement.md  # Task definition (tabular/time-series/ranking/multiclass/binary)
     01_data_card.md          # Data schema + leakage checklist

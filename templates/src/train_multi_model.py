@@ -8,22 +8,25 @@ Goal:
 - Compare performance across models
 - Save all model artifacts for later ensemble
 - Support configurable model selection via config
+- **NEW**: Parallel training support with CUDA GPU detection
 
 Agent development steps (commentary):
 1) Parse args and load config
 2) Load train/test data
-3) Get list of models to train from config (or use defaults)
-4) For each model:
+3) Detect CUDA GPU availability
+4) Get list of models to train from config (or use defaults)
+5) For each model (in parallel):
    - Build fold-safe preprocessing pipeline
-   - Train model with CV
+   - Train model with CV (GPU-accelerated if available)
    - Save OOF predictions and model artifacts
    - Record metrics
-5) Compare all models and output summary
-6) Append records to results.json
+6) Compare all models and output summary
+7) Append records to results.json
 
 Usage:
     python src/train_multi_model.py --config configs/baseline.yaml
     python src/train_multi_model.py --config configs/baseline.yaml --models "LightGBM,XGBoost"
+    python src/train_multi_model.py --config configs/baseline.yaml --parallel --n_jobs 4
 """
 
 from __future__ import annotations
@@ -31,8 +34,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -50,6 +57,10 @@ def _parse_args():
     p.add_argument("--config", type=str, default="configs/baseline.yaml")
     p.add_argument("--models", type=str, default=None, help="Comma-separated model names to train (e.g., 'LightGBM,XGBoost')")
     p.add_argument("--run_id_prefix", type=str, default=None, help="Prefix for run IDs")
+    p.add_argument("--parallel", action="store_true", help="Enable parallel training")
+    p.add_argument("--n_jobs", type=int, default=-1, help="Number of parallel jobs (-1 for all CPUs)")
+    p.add_argument("--use_gpu", action="store_true", help="Force GPU usage if available")
+    p.add_argument("--no_gpu", action="store_true", help="Disable GPU even if available")
     return p.parse_args()
 
 
@@ -65,6 +76,79 @@ def _append_to_results_json(results_path: Path, record: dict):
         json.dump(ledger, f, indent=2, ensure_ascii=False)
 
 
+def detect_cuda_gpu() -> tuple[bool, dict[str, Any]]:
+    """
+    Detect CUDA GPU availability and return device info.
+    
+    Returns:
+        tuple: (has_gpu, gpu_info)
+        - has_gpu: True if CUDA GPU is available
+        - gpu_info: Dictionary with GPU details
+    """
+    gpu_info = {
+        "cuda_available": False,
+        "device": "cpu",
+        "gpu_count": 0,
+        "gpu_names": [],
+        "cuda_version": None,
+    }
+    
+    # Method 1: Check PyTorch CUDA
+    try:
+        import torch
+        if torch.cuda.is_available():
+            gpu_info["cuda_available"] = True
+            gpu_info["device"] = "cuda"
+            gpu_info["gpu_count"] = torch.cuda.device_count()
+            gpu_info["gpu_names"] = [torch.cuda.get_device_name(i) for i in range(gpu_info["gpu_count"])]
+            gpu_info["cuda_version"] = torch.version.cuda
+            return True, gpu_info
+    except ImportError:
+        pass
+    
+    # Method 2: Check CuPy
+    try:
+        import cupy
+        if cupy.cuda.is_available():
+            gpu_info["cuda_available"] = True
+            gpu_info["device"] = "cuda"
+            gpu_info["gpu_count"] = 1
+            return True, gpu_info
+    except ImportError:
+        pass
+    
+    # Method 3: Check nvidia-smi (system command)
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            gpu_info["cuda_available"] = True
+            gpu_info["device"] = "cuda"
+            lines = result.stdout.strip().split("\n")
+            gpu_info["gpu_count"] = len(lines)
+            gpu_info["gpu_names"] = [line.split(",")[0].strip() for line in lines]
+            return True, gpu_info
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    
+    return False, gpu_info
+
+
+def get_n_jobs(n_jobs: int) -> int:
+    """Determine actual number of jobs based on n_jobs parameter."""
+    if n_jobs == -1:
+        return os.cpu_count() or 1
+    elif n_jobs < -1:
+        return max(1, (os.cpu_count() or 1) + n_jobs + 1)
+    else:
+        return max(1, n_jobs)
+
+
 def get_available_models(task_family: str) -> list[str]:
     """Get list of available models for a given task family."""
     model_map = {
@@ -77,50 +161,76 @@ def get_available_models(task_family: str) -> list[str]:
     return model_map.get(task_family, ["LightGBM"])
 
 
-def create_model(model_name: str, model_params: dict, seed: int = 42):
-    """Create a model instance based on model name and parameters."""
+def create_model(model_name: str, model_params: dict, seed: int = 42, use_gpu: bool = False):
+    """
+    Create a model instance based on model name and parameters.
+    
+    Args:
+        model_name: Name of the model
+        model_params: Model hyperparameters
+        seed: Random seed
+        use_gpu: Whether to use GPU acceleration
+    """
+    
+    device = "gpu" if use_gpu else "cpu"
     
     if model_name == "LightGBM":
         import lightgbm as lgb
-        return lgb.LGBMClassifier(
-            objective="binary",
-            n_estimators=model_params.get("n_estimators", 2000),
-            learning_rate=model_params.get("learning_rate", 0.05),
-            max_depth=model_params.get("max_depth", -1),
-            num_leaves=model_params.get("num_leaves", 64),
-            min_data_in_leaf=model_params.get("min_data_in_leaf", 50),
-            subsample=model_params.get("subsample", 0.8),
-            colsample_bytree=model_params.get("colsample_bytree", 0.8),
-            reg_lambda=model_params.get("reg_lambda", 1.0),
-            random_state=seed,
-            verbose=-1,
-        )
+        lgb_params = {
+            "objective": "binary",
+            "n_estimators": model_params.get("n_estimators", 2000),
+            "learning_rate": model_params.get("learning_rate", 0.05),
+            "max_depth": model_params.get("max_depth", -1),
+            "num_leaves": model_params.get("num_leaves", 64),
+            "min_data_in_leaf": model_params.get("min_data_in_leaf", 50),
+            "subsample": model_params.get("subsample", 0.8),
+            "colsample_bytree": model_params.get("colsample_bytree", 0.8),
+            "reg_lambda": model_params.get("reg_lambda", 1.0),
+            "random_state": seed,
+            "verbose": -1,
+        }
+        # Add GPU parameters if using GPU
+        if use_gpu:
+            lgb_params["device"] = device
+            lgb_params["gpu_platform_id"] = model_params.get("gpu_platform_id", 0)
+            lgb_params["gpu_device_id"] = model_params.get("gpu_device_id", 0)
+        return lgb.LGBMClassifier(**lgb_params)
     
     elif model_name == "XGBoost":
         import xgboost as xgb
-        return xgb.XGBClassifier(
-            objective="binary:logistic",
-            n_estimators=model_params.get("n_estimators", 2000),
-            learning_rate=model_params.get("learning_rate", 0.05),
-            max_depth=model_params.get("max_depth", 6),
-            min_child_weight=model_params.get("min_child_weight", 1.0),
-            subsample=model_params.get("subsample", 0.8),
-            colsample_bytree=model_params.get("colsample_bytree", 0.8),
-            reg_lambda=model_params.get("reg_lambda", 1.0),
-            random_state=seed,
-            verbose=0,
-        )
+        xgb_params = {
+            "objective": "binary:logistic",
+            "n_estimators": model_params.get("n_estimators", 2000),
+            "learning_rate": model_params.get("learning_rate", 0.05),
+            "max_depth": model_params.get("max_depth", 6),
+            "min_child_weight": model_params.get("min_child_weight", 1.0),
+            "subsample": model_params.get("subsample", 0.8),
+            "colsample_bytree": model_params.get("colsample_bytree", 0.8),
+            "reg_lambda": model_params.get("reg_lambda", 1.0),
+            "random_state": seed,
+            "verbose": 0,
+        }
+        # Add GPU parameters if using GPU
+        if use_gpu:
+            xgb_params["tree_method"] = "gpu_hist"
+            xgb_params["gpu_id"] = model_params.get("gpu_id", 0)
+        return xgb.XGBClassifier(**xgb_params)
     
     elif model_name == "CatBoost":
         from catboost import CatBoostClassifier
-        return CatBoostClassifier(
-            iterations=model_params.get("n_estimators", 2000),
-            learning_rate=model_params.get("learning_rate", 0.05),
-            depth=model_params.get("max_depth", 6),
-            l2_leaf_reg=model_params.get("reg_lambda", 1.0),
-            random_seed=seed,
-            verbose=0,
-        )
+        cb_params = {
+            "iterations": model_params.get("n_estimators", 2000),
+            "learning_rate": model_params.get("learning_rate", 0.05),
+            "depth": model_params.get("max_depth", 6),
+            "l2_leaf_reg": model_params.get("reg_lambda", 1.0),
+            "random_seed": seed,
+            "verbose": 0,
+        }
+        # Add GPU parameters if using GPU
+        if use_gpu:
+            cb_params["task_type"] = "GPU"
+            cb_params["devices"] = str(model_params.get("gpu_id", 0))
+        return CatBoostClassifier(**cb_params)
     
     elif model_name == "LogisticRegression":
         from sklearn.linear_model import LogisticRegression
@@ -142,19 +252,22 @@ def create_model(model_name: str, model_params: dict, seed: int = 42):
     else:
         # Default to LightGBM
         import lightgbm as lgb
-        return lgb.LGBMClassifier(
-            objective="binary",
-            n_estimators=model_params.get("n_estimators", 2000),
-            learning_rate=model_params.get("learning_rate", 0.05),
-            max_depth=model_params.get("max_depth", -1),
-            num_leaves=model_params.get("num_leaves", 64),
-            min_data_in_leaf=model_params.get("min_data_in_leaf", 50),
-            subsample=model_params.get("subsample", 0.8),
-            colsample_bytree=model_params.get("colsample_bytree", 0.8),
-            reg_lambda=model_params.get("reg_lambda", 1.0),
-            random_state=seed,
-            verbose=-1,
-        )
+        lgb_params = {
+            "objective": "binary",
+            "n_estimators": model_params.get("n_estimators", 2000),
+            "learning_rate": model_params.get("learning_rate", 0.05),
+            "max_depth": model_params.get("max_depth", -1),
+            "num_leaves": model_params.get("num_leaves", 64),
+            "min_data_in_leaf": model_params.get("min_data_in_leaf", 50),
+            "subsample": model_params.get("subsample", 0.8),
+            "colsample_bytree": model_params.get("colsample_bytree", 0.8),
+            "reg_lambda": model_params.get("reg_lambda", 1.0),
+            "random_state": seed,
+            "verbose": -1,
+        }
+        if use_gpu:
+            lgb_params["device"] = device
+        return lgb.LGBMClassifier(**lgb_params)
 
 
 def train_single_model(
@@ -166,6 +279,7 @@ def train_single_model(
     folds: list,
     seed: int,
     run_id_prefix: str | None = None,
+    use_gpu: bool = False,
 ) -> dict:
     """Train a single model and return results."""
     
@@ -221,8 +335,9 @@ def train_single_model(
     (run_dir / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_dir / "plots").mkdir(parents=True, exist_ok=True)
     
+    device_str = "GPU" if use_gpu else "CPU"
     print(f"\n{'='*60}")
-    print(f"Training model: {model_name}")
+    print(f"Training model: {model_name} on {device_str}")
     print(f"Run ID: {run_id}")
     print(f"{'='*60}")
     
@@ -255,7 +370,7 @@ def train_single_model(
             y_va_binary = y_va.astype(int)
         
         # Create and train model
-        model = create_model(model_name, model_params, seed)
+        model = create_model(model_name, model_params, seed, use_gpu=use_gpu)
         
         training_cfg = config.get("training", {})
         early_stopping = training_cfg.get("early_stopping", True)
@@ -325,6 +440,7 @@ def train_single_model(
         "objective": model_cfg.get("objective", "binary"),
         "params": model_params,
     }
+    model_config["device"] = "gpu" if use_gpu else "cpu"
     
     with open(run_dir / "params.json", "w", encoding="utf-8") as f:
         json.dump(model_config, f, indent=2, ensure_ascii=False)
@@ -371,7 +487,7 @@ def train_single_model(
         "data": {"data_version": data_cfg.get("data_version", ""), "row_count_train": int(len(train_df))},
         "cv": {"cv_type": config.get("cv", {}).get("cv_type", ""), "n_splits": n_splits, "random_state": seed},
         "features": {"feature_set_id": config.get("features", {}).get("feature_set_id", ""), "dropped_columns": data_cfg.get("drop_cols", [])},
-        "model": {"name": model_name, "objective": model_cfg.get("objective", "")},
+        "model": {"name": model_name, "objective": model_cfg.get("objective", ""), "device": "gpu" if use_gpu else "cpu"},
         "metrics": {"primary": {"name": primary_metric, "mean": primary_mean, "std": primary_std}},
         "resources": {},
         "artifacts": {
@@ -381,7 +497,7 @@ def train_single_model(
             "oof_path": str(run_dir / "artifacts" / "oof_predictions.parquet").replace("\\", "/"),
         },
         "decision": {"status": "keep", "reason": f"Multi-model training: {model_name}"},
-        "notes_short": f"Multi-model training: {model_name}",
+        "notes_short": f"Multi-model training: {model_name} on {device_str}",
     }
     _append_to_results_json(results_path, record)
     
@@ -391,14 +507,46 @@ def train_single_model(
         "primary_mean": primary_mean,
         "primary_std": primary_std,
         "per_fold": per_fold_primary,
+        "device": "gpu" if use_gpu else "cpu",
     }
 
 
 def main():
     args = _parse_args()
     config = data_mod.load_config(args.config)
-    seed = int(config.get("project", {}).get("seed", 42))
-    np.random.seed(seed)
+    default_seed = int(config.get("project", {}).get("seed", 42))
+    seed_list = config.get("project", {}).get("seed_list", [default_seed])
+    np.random.seed(default_seed)
+    
+    # Detect GPU
+    has_gpu, gpu_info = detect_cuda_gpu()
+    print(f"\n{'='*60}")
+    print("GPU Detection Results")
+    print(f"{'='*60}")
+    print(f"CUDA Available: {gpu_info['cuda_available']}")
+    print(f"Device: {gpu_info['device']}")
+    print(f"GPU Count: {gpu_info['gpu_count']}")
+    if gpu_info['gpu_names']:
+        print(f"GPU Names: {', '.join(gpu_info['gpu_names'])}")
+    if gpu_info['cuda_version']:
+        print(f"CUDA Version: {gpu_info['cuda_version']}")
+    print(f"{'='*60}\n")
+    
+    # Determine GPU usage
+    use_gpu = False
+    if args.no_gpu:
+        use_gpu = False
+        print("GPU disabled by --no_gpu flag")
+    elif args.use_gpu:
+        use_gpu = has_gpu
+        if not has_gpu:
+            print("Warning: --use_gpu specified but no GPU detected, falling back to CPU")
+    else:
+        # Auto-detect: use GPU if available
+        use_gpu = has_gpu
+    
+    device_str = "GPU" if use_gpu else "CPU"
+    print(f"Training device: {device_str}\n")
     
     task_cfg = config.get("task", {})
     task_family = task_cfg.get("family", "classification_binary")
@@ -443,45 +591,108 @@ def main():
             model_names = get_available_models(task_family)
     
     print(f"Training models: {model_names}")
+    print(f"Seed list: {seed_list}")
     print(f"Task family: {task_family}")
     print(f"Target column: {target_col}")
     print(f"Number of folds: {len(folds)}")
     print(f"Number of features: {len(feature_cols)}")
+    print(f"Parallel training: {'Enabled' if args.parallel else 'Disabled'}")
+    if args.parallel:
+        n_jobs = get_n_jobs(args.n_jobs)
+        print(f"Number of jobs: {n_jobs}")
     
-    # Train all models
-    results = []
+    # Prepare training tasks
+    training_tasks = []
     for model_name in model_names:
-        try:
-            result = train_single_model(
-                model_name=model_name,
-                config=config,
-                train_df=train_df,
-                feature_cols=feature_cols,
-                target_col=target_col,
-                folds=folds,
-                seed=seed,
-                run_id_prefix=args.run_id_prefix,
-            )
-            results.append(result)
-        except Exception as e:
-            print(f"\nError training {model_name}: {e}")
-            import traceback
-            traceback.print_exc()
+        for seed in seed_list:
+            run_id_prefix = f"{args.run_id_prefix}_seed{seed}" if args.run_id_prefix else f"seed{seed}"
+            training_tasks.append((model_name, seed, run_id_prefix))
+    
+    # Train models
+    results = []
+    
+    if args.parallel and len(training_tasks) > 1:
+        # Parallel training
+        n_jobs = get_n_jobs(args.n_jobs)
+        print(f"\nStarting parallel training with {n_jobs} workers...\n")
+        
+        # Use ThreadPoolExecutor for models that share data
+        # Note: Some models may not be thread-safe, so we use ProcessPoolExecutor as fallback
+        use_threads = True  # Set to False if thread-safety issues arise
+        
+        ExecutorClass = ThreadPoolExecutor if use_threads else ProcessPoolExecutor
+        
+        with ExecutorClass(max_workers=n_jobs) as executor:
+            # Submit all tasks
+            future_to_task = {}
+            for model_name, seed, run_id_prefix in training_tasks:
+                future = executor.submit(
+                    train_single_model,
+                    model_name=model_name,
+                    config=config,
+                    train_df=train_df,
+                    feature_cols=feature_cols,
+                    target_col=target_col,
+                    folds=folds,
+                    seed=seed,
+                    run_id_prefix=run_id_prefix,
+                    use_gpu=use_gpu,
+                )
+                future_to_task[future] = (model_name, seed)
+            
+            # Collect results as they complete
+            for future in as_completed(future_to_task):
+                model_name, seed = future_to_task[future]
+                try:
+                    result = future.result()
+                    result["seed"] = seed
+                    results.append(result)
+                    print(f"\n✓ Completed: {model_name} (seed={seed})")
+                except Exception as e:
+                    print(f"\n✗ Error training {model_name} with seed {seed}: {e}")
+                    import traceback
+                    traceback.print_exc()
+    else:
+        # Sequential training
+        print("\nStarting sequential training...\n")
+        
+        for model_name, seed, run_id_prefix in training_tasks:
+            try:
+                result = train_single_model(
+                    model_name=model_name,
+                    config=config,
+                    train_df=train_df,
+                    feature_cols=feature_cols,
+                    target_col=target_col,
+                    folds=folds,
+                    seed=seed,
+                    run_id_prefix=run_id_prefix,
+                    use_gpu=use_gpu,
+                )
+                result["seed"] = seed
+                results.append(result)
+            except Exception as e:
+                print(f"\nError training {model_name} with seed {seed}: {e}")
+                import traceback
+                traceback.print_exc()
     
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'='*80}")
     print("MULTI-MODEL TRAINING SUMMARY")
-    print(f"{'='*60}")
-    print(f"{'Model':<20} {'AUC (mean)':<15} {'AUC (std)':<15}")
-    print("-" * 50)
+    print(f"{'='*80}")
+    print(f"{'Model':<20} {'Seed':<10} {'Device':<10} {'AUC (mean)':<15} {'AUC (std)':<15}")
+    print("-" * 80)
     
     # Sort by performance
     results.sort(key=lambda x: x["primary_mean"], reverse=True)
     
     for result in results:
-        print(f"{result['model_name']:<20} {result['primary_mean']:<15.6f} {result['primary_std']:<15.6f}")
+        seed = result.get("seed", default_seed)
+        device = result.get("device", "cpu")
+        print(f"{result['model_name']:<20} {seed:<10} {device.upper():<10} {result['primary_mean']:<15.6f} {result['primary_std']:<15.6f}")
     
     print(f"\nBest model: {results[0]['model_name']} (AUC: {results[0]['primary_mean']:.6f})")
+    print(f"Device used: {results[0].get('device', 'cpu').upper()}")
     print(f"\nAll runs saved. Use ensemble.py to combine predictions.")
 
 
