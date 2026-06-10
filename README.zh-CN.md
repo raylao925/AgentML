@@ -56,7 +56,7 @@ projects/<project_slug>/
     MEMORY.md                # 持續對話上下文
     debugging.md             # 除錯日誌與疑難排解
 
-  docs/
+  doc/
     00_problem_statement.md  # 任務定義（tabular/time-series/ranking/multiclass/binary）
     01_data_card.md          # Data schema + leakage checklist
     02_eda.md                # EDA 範本（insights → actions）
@@ -71,7 +71,7 @@ projects/<project_slug>/
     search_space.yaml        # 可探索邊界（models/params/feature flags）
 
   src/
-    data.py                  # load/clean/split（須遵守 docs/03_cv_strategy.md）
+    data.py                  # load/clean/split（須遵守 doc/03_cv_strategy.md）
     features.py              # 特徵工程（須 fold-safe）
     train.py                 # 訓練入口（讀 configs）
     evaluate.py              # 指標計算（定義固定）
@@ -107,12 +107,12 @@ cp -r templates/. projects/<project_slug>/
 
 ### 2) 填寫權威文件（或使用 Data Wide Search）
 
-**選項 A — 完整控制**：至少完成 `docs/00_problem_statement.md` 和 `docs/01_data_card.md`。
+**選項 A — 完整控制**：至少完成 `doc/00_problem_statement.md` 和 `doc/01_data_card.md`。
 
 **選項 B — 最小設定**：將 train/test 資料放入 `data/raw/` 或 `data/processed/`，執行 Agent。Agent 會進行 Data Wide Search 推斷情境、提出特徵並與你確認（見下方「Data Wide Search」）。
 
 CV 可二擇一：
-- **使用者指定**：填寫 `docs/03_cv_strategy.md`（建議，便於嚴格控制）
+- **使用者指定**：填寫 `doc/03_cv_strategy.md`（建議，便於嚴格控制）
 - **Auto-infer + Lock-in**：留空或缺失，由 Agent 從 EDA/`df.info()` 推斷並寫入一次（見「CV Bootstrapping」）
 
 ### 3) 執行 Baseline（手動）
@@ -135,7 +135,7 @@ openclaw run projects/<project_slug>/program.md
 ```
 
 Agent 會：
-1) 讀取 `program.md` + `docs/*` + `configs/*`
+1) 讀取 `program.md` + `doc/*` + `configs/*`
 2) 在 `search_space.yaml` 內提出並套用 bounded change（config/feature/model）
 3) 使用鎖定的 CV 策略訓練與評估
 4) append 一筆 record 到 `results.json`
@@ -145,11 +145,11 @@ Agent 會：
 
 ## CV Bootstrapping（Auto-infer + Lock-in）
 
-若使用者未指定 CV，且 `docs/03_cv_strategy.md` 缺失或為空：
+若使用者未指定 CV，且 `doc/03_cv_strategy.md` 缺失或為空：
 
 1) Agent 進行最小資料理解（EDA / `df.info()` / schema scan）
 2) 推斷安全的 CV 策略（time-based / group-based / stratified 等）
-3) **寫入 `docs/03_cv_strategy.md` 並鎖定**
+3) **寫入 `doc/03_cv_strategy.md` 並鎖定**
 4) 後續 run 必須完全遵守
 
 一旦鎖定，Agent 不得私下改動：
@@ -163,12 +163,12 @@ Agent 會：
 
 ## Data Wide Search（最小情境 Bootstrapping）
 
-當使用者 **只將資料集放入** `projects/<project_slug>/data/`，未填寫 `docs/00_problem_statement.md` 或 `01_data_card.md` 時，Agent 可透過 **wide search** 補足情境：
+當使用者 **只將資料集放入** `projects/<project_slug>/data/`，未填寫 `doc/00_problem_statement.md` 或 `01_data_card.md` 時，Agent 可透過 **wide search** 補足情境：
 
 1. **從資料推斷**：執行 `df.info()`、schema scan、取樣；辨識可能的 target、ID、datetime 欄位；推測任務類型
 2. **網域/競賽搜尋**：搜尋類似問題、Kaggle notebook、領域最佳實踐；蒐集特徵構想（比例、聚合、時序轉換、編碼）
 3. **與使用者互動**：摘要發現；提出推測的 target、任務類型、特徵候選；請使用者確認或修正
-4. **撰寫與實作**：將推斷內容寫入 `docs/*`；在 `docs/04_modeling.md` 加入「Data Wide Search」小節；在 `src/features.py` 實作 fold-safe 特徵
+4. **撰寫與實作**：將推斷內容寫入 `doc/*`；在 `doc/04_modeling.md` 加入「Data Wide Search」小節；在 `src/features.py` 實作 fold-safe 特徵
 
 完整流程見 `SKILL.md` §1.5 與 `templates/doc/04_modeling.md` §2.3。
 

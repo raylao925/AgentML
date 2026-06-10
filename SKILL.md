@@ -34,9 +34,9 @@ or automated checklist.
 - Load authoritative research protocol from `program.md`.
 - Parse constraints from `AGENT_RULES.md` (no leakage, CV authority, test restrictions, metric definition fixed).
 - Load task specs:
-  - `docs/00_problem_statement.md`
-  - `docs/01_data_card.md`
-  - `docs/03_cv_strategy.md` (if present/locked)
+  - `doc/00_problem_statement.md`
+  - `doc/01_data_card.md`
+  - `doc/03_cv_strategy.md` (if present/locked)
 
 Output: a structured “run plan” object containing task family, target, primary metric, CV policy, and allowed change dimensions.
 
@@ -44,10 +44,10 @@ Output: a structured “run plan” object containing task family, target, prima
 
 ## 1.5) Data Wide Search (Minimal Context Bootstrapping)
 
-When the user has **only dropped a dataset** into `projects/<project_slug>/data/` without filling `docs/00_problem_statement.md`, `docs/01_data_card.md`, or other docs, the agent should perform **wide search** to bootstrap context and strengthen feature engineering.
+When the user has **only dropped a dataset** into `projects/<project_slug>/data/` without filling `doc/00_problem_statement.md`, `doc/01_data_card.md`, or other docs, the agent should perform **wide search** to bootstrap context and strengthen feature engineering.
 
 ### Triggers
-- `docs/00_problem_statement.md` or `01_data_card.md` is empty, placeholder-only, or missing.
+- `doc/00_problem_statement.md` or `01_data_card.md` is empty, placeholder-only, or missing.
 - User explicitly asks: "help me understand this data" / "suggest features" / "what can I do with this dataset?"
 
 ### Wide Search Steps
@@ -64,32 +64,32 @@ When the user has **only dropped a dataset** into `projects/<project_slug>/data/
 3) **User–agent interaction**:
    - Summarize findings and propose: inferred target, task type, and a short list of feature engineering candidates.
    - Ask user to confirm or correct: target column, positive class (if binary), domain assumptions.
-   - Iterate: refine `docs/01_data_card.md` and `04_modeling.md` based on user feedback.
+   - Iterate: refine `doc/01_data_card.md` and `04_modeling.md` based on user feedback.
 
 4) **Document and implement**:
-   - Write inferred/problem-statement and data-card content into `docs/*`.
-   - Add a "Data Wide Search" subsection to `docs/04_modeling.md` (see template) with discovered feature ideas.
+   - Write inferred/problem-statement and data-card content into `doc/*`.
+   - Add a "Data Wide Search" subsection to `doc/04_modeling.md` (see template) with discovered feature ideas.
    - Implement fold-safe features in `src/features.py` per `AGENT_RULES` (no leakage).
 
 ### Output
-- Updated `docs/00_problem_statement.md`, `01_data_card.md`, and `04_modeling.md` (Data Wide Search section).
+- Updated `doc/00_problem_statement.md`, `01_data_card.md`, and `04_modeling.md` (Data Wide Search section).
 - A set of feature engineering hypotheses ready for ablation runs.
 
 ---
 
 ## 2) CV Strategy Compliance (Lock-in Mode)
-- If `docs/03_cv_strategy.md` is authoritative (P1), follow it exactly.
+- If `doc/03_cv_strategy.md` is authoritative (P1), follow it exactly.
 - If CV is missing/empty (P2 auto-infer), infer safely using minimal schema/EDA evidence:
   - detect time/group/id candidates
   - detect leakage risk signals
-- Write the inferred rule back to `docs/03_cv_strategy.md` and treat it as locked.
+- Write the inferred rule back to `doc/03_cv_strategy.md` and treat it as locked.
 
 Output: a CV object (cv_type, n_splits, keys, split rules) used consistently by training + any fold-safe preprocessing.
 
 ---
 
 ## 3) Leakage Checks (Hard Guardrail)
-- Drop features explicitly flagged as leak in `docs/01_data_card.md`.
+- Drop features explicitly flagged as leak in `doc/01_data_card.md`.
 - Ensure preprocessing is fold-safe:
   - fit preprocessors only on the train fold
   - compute aggregations/encodings/rollups only on train fold window
@@ -122,7 +122,7 @@ Output: trained preprocessors per fold and a reproducible `feature_list.json` ar
 ---
 
 ## 6) Model Training with OOF Logging
-- Train using CV folds from `docs/03_cv_strategy.md`.
+- Train using CV folds from `doc/03_cv_strategy.md`.
 - Produce OOF predictions per fold and store them in `runs/<run_id>/artifacts/`.
 - Save all required artifacts:
   - `artifacts/model.pkl`

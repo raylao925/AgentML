@@ -2,8 +2,10 @@
 
 ## 1) Baseline (Must Have)
 - Model: {{BASELINE_MODEL}}
+- **Default rule**: If task is **tabular classification/regression** (non-time-series, non-ranking), baseline model should be **LightGBM**.
+- Override baseline model only when task constraints require it (e.g., ranking objective, strict time-series modeling constraints, or user-specified requirement).
 - Feature set id: {{FEATURE_SET_ID}}
-- CV: per `03_cv_strategy.md`
+- CV: per `doc/03_cv_strategy.md`
 - Baseline score: {{BASELINE_SCORE}}
 
 ## 2) Feature Pipeline (Fold-safe)
@@ -56,7 +58,7 @@ When the user **only drops a dataset** without filling `00_problem_statement.md`
 1. **Infer minimal context from data**: `df.info()`, schema scan, sample rows; infer target, ID, datetime columns and task type.
 2. **Web / domain search**: If dataset/domain hints exist → search similar problems, Kaggle notebooks, domain best practices; collect feature candidates (ratios, aggregates, time transforms, encodings).
 3. **User–agent interaction**: Summarize findings and propose inferred target, task type, feature candidates; ask user to confirm or correct; update docs per feedback.
-4. **Document and implement**: Write inferred content into `docs/*`; record Data Wide Search findings and adopted hypotheses in this section.
+4. **Document and implement**: Write inferred content into `doc/*`; record Data Wide Search findings and adopted hypotheses in this section.
 
 **This project's Data Wide Search record** (if executed):
 - Search keywords / sources:
@@ -76,10 +78,31 @@ When the user **only drops a dataset** without filling `00_problem_statement.md`
   - **Non-negative with zeros**: Prefer `log1p` to avoid log(0).
   - Transform and inverse must be fixed in pipeline (same for train/valid/test); if metric is in original scale, compute after inverse.
 - **Record**:
-  - In this section of `04_modeling.md`: target transform used (binary pos_label, regression log1p or not).
+  - In this section of `doc/04_modeling.md`: target transform used (binary pos_label, regression log1p or not).
   - In `runs/<run_id>/params.json` or `artifacts/target_mapping.json` for evaluate / infer.
 
 ## 3) Model Families & When to Use
+### EDA-driven model decision (CatBoost vs XGBoost)
+- After EDA, run a controlled comparison between **CatBoost** and **XGBoost** using the same:
+  - fold definition from `doc/03_cv_strategy.md`
+  - feature set
+  - metric definition
+  - seed and evaluation protocol
+- Prefer **CatBoost** when:
+  - many categorical columns remain after preprocessing
+  - high-cardinality categoricals are important
+  - missing values are frequent and simple preprocessing is desired
+  - quick robust baseline is needed with minimal feature preprocessing
+- Prefer **XGBoost** when:
+  - features are mostly numeric or already well-encoded
+  - sparse/high-dimensional transformed features are used
+  - tighter control over tree growth/regularization is needed
+  - large-scale training speed/memory tradeoff is better in project tests
+- Decision rule:
+  - choose the model with better CV primary metric mean (and acceptable std/runtime)
+  - if scores are effectively tied, prefer the faster/more stable model
+  - record the final decision and evidence in `runs/<run_id>/notes.md` and `results.json`
+
 ### Classification (binary / multiclass)
 - objectives: logistic / softmax
 - class imbalance handling: class_weight / scale_pos_weight
@@ -111,7 +134,7 @@ Each model must record:
 - memory usage (if available)
 
 ## 5) KFold / CV Training Procedure
-1) build folds from `03_cv_strategy.md`
+1) build folds from `doc/03_cv_strategy.md`
 2) for each fold:
    - fit preprocessors on train fold
    - train model

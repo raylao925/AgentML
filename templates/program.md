@@ -18,18 +18,18 @@ You must obey all hard constraints in `AGENT_RULES.md`.
 
 ## 1) Task Understanding (Read First)
 You must read and extract:
-1) `docs/*.md`: full ML task content
+1) `doc/*.md`: full ML task content
 2) `configs/baseline.yaml`: full baseline config
 
 Then write your "task summary" at the top of `runs/<run_id>/notes.md`.
 
 ## 1.5 CV Bootstrap (Only if CV is missing) — Lock-in Mode (1)
 
-Before any modeling experiments, the agent MUST ensure `docs/03_cv_strategy.md` exists and is authoritative.
+Before any modeling experiments, the agent MUST ensure `doc/03_cv_strategy.md` exists and is authoritative.
 
 ### Step 1 — Detect CV Authority
 - If user prompt explicitly specifies CV / group_key / time_col / query_id → treat as P0
-- Else if `docs/03_cv_strategy.md` exists and non-empty → treat as P1
+- Else if `doc/03_cv_strategy.md` exists and non-empty → treat as P1
 - Else → treat as P2 (auto-infer)
 
 ### Step 2 — If P2 (Auto-infer CV)
@@ -44,7 +44,7 @@ The agent MUST:
    - GroupKFold if group leakage risk is present (same entity repeats)
    - ranking requires query_id integrity (GroupKFold by query_id)
    - StratifiedKFold for classification if no time/group constraint overrides
-3) Write `docs/03_cv_strategy.md`:
+3) Write `doc/03_cv_strategy.md`:
    - include the inferred rule + evidence + rationale
    - set "Lock-in: true" section
 4) From this point onward, treat CV as P1 (locked). No silent changes.
@@ -55,8 +55,8 @@ The agent MUST:
 ---
 
 ## 2) Hard Constraints (Must Not Break)
-1) **No Leakage**: Do not use columns marked leak in `docs/01_data_card.md`; do not compute anything that lets valid fold see future info.
-2) **CV/Split rules immutable**: All comparisons must use splits defined in `docs/03_cv_strategy.md`. To change CV, update `docs/03_cv_strategy.md` first with clear justification.
+1) **No Leakage**: Do not use columns marked leak in `doc/01_data_card.md`; do not compute anything that lets valid fold see future info.
+2) **CV/Split rules immutable**: All comparisons must use splits defined in `doc/03_cv_strategy.md`. To change CV, update `doc/03_cv_strategy.md` first with clear justification.
 3) **Test set may not be used for tuning**: Test only for final report or submission; never for model/feature/threshold selection.
 4) **Metric definition fixed**: PRIMARY_METRIC calculation must not change (unless fixing a clear bug, with reason recorded).
 5) **Reproducibility**: Fix seed each run; record data_version, feature_version, code_hash.
@@ -77,7 +77,7 @@ The agent MUST:
 
 ### 3.3 Optimization work
 - Early stopping, class weight, calibration (for classification)
-- Ensembling (see `docs/05_ensemble.md`; must use OOF design)
+- Ensembling (see `doc/05_ensemble.md`; must use OOF design)
 
 ---
 
@@ -102,7 +102,7 @@ Each iteration you must:
   - `runs/<run_id>/notes.md`
 
 ### Step C — Log to Ledger (`results.json`)
-Write run result to `results.json` (format see `docs/06_experiment_log.md` Spec).
+Write run result to `results.json` (format see `doc/06_experiment_log.md` Spec).
 
 ### Step D — Keep / Discard
 - Keep conditions (default; override in `AGENT_RULES.md`):

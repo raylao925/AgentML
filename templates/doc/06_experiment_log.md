@@ -63,7 +63,7 @@ Each record **must** include these fields (add/remove as needed, but keep core f
     "row_count_train": 123456,
     "row_count_valid": 30864,
     "schema_hash": "sha1:xxxx",
-    "leakage_policy_ref": "docs/01_data_card.md"
+    "leakage_policy_ref": "doc/01_data_card.md"
   },
 
   "cv": {

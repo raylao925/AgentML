@@ -1,6 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+.agents/skills/*
+!.agents/skills/agentml/
+.clinerules/
+catboost_info/
 *.py[codz]
+skills-lock.json
 *$py.class
 .vscode/
 projects/

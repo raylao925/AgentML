@@ -56,7 +56,7 @@ projects/<project_slug>/
     MEMORY.md                # Persistent conversation context
     debugging.md             # Debug logs and troubleshooting
 
-  docs/
+  doc/
     00_problem_statement.md  # Task definition (tabular/time-series/ranking/multiclass/binary)
     01_data_card.md          # Data schema + leakage checklist
     02_eda.md                # EDA template (insights → actions)
@@ -71,7 +71,7 @@ projects/<project_slug>/
     search_space.yaml        # Allowed search boundary (models/params/feature flags)
 
   src/
-    data.py                  # load/clean/split (must follow docs/03_cv_strategy.md)
+    data.py                  # load/clean/split (must follow doc/03_cv_strategy.md)
     features.py              # feature engineering (must be fold-safe)
     train.py                 # training entry (reads configs)
     evaluate.py              # metrics computation (definition fixed)
@@ -107,12 +107,12 @@ cp -r templates/. projects/<project_slug>/
 
 ### 2) Fill in Authoritative Docs (or Use Data Wide Search)
 
-**Option A — Full control**: At minimum, complete `docs/00_problem_statement.md` and `docs/01_data_card.md`.
+**Option A — Full control**: At minimum, complete `doc/00_problem_statement.md` and `doc/01_data_card.md`.
 
 **Option B — Minimal setup**: Drop your train/test data into `data/raw/` or `data/processed/` and run the agent. It will perform Data Wide Search to infer context, propose features, and interact with you to confirm (see "Data Wide Search" below).
 
 For CV, you have two options:
-- **User-specified**: fill `docs/03_cv_strategy.md` explicitly (recommended for strict control)
+- **User-specified**: fill `doc/03_cv_strategy.md` explicitly (recommended for strict control)
 - **Auto-infer + Lock-in**: leave it missing/empty and let the agent infer from EDA/`df.info()` and write it once (see “CV Bootstrapping”)
 
 ### 3) Run Baseline (Manual)
@@ -135,7 +135,7 @@ openclaw run projects/<project_slug>/program.md
 ```
 
 The agent will:
-1) read `program.md` + `docs/*` + `configs/*`
+1) read `program.md` + `doc/*` + `configs/*`
 2) propose and apply a bounded change (config/feature/model) within `search_space.yaml`
 3) train + evaluate using the locked CV strategy
 4) append a record to `results.json`
@@ -145,11 +145,11 @@ The agent will:
 
 ## CV Bootstrapping (Auto-infer + Lock-in)
 
-If the user did not specify CV and `docs/03_cv_strategy.md` is missing/empty:
+If the user did not specify CV and `doc/03_cv_strategy.md` is missing/empty:
 
 1) the agent performs minimal data understanding (EDA / `df.info()` / schema scan)
 2) infers a safe CV strategy (time-based vs group-based vs stratified, etc.)
-3) **writes it to `docs/03_cv_strategy.md` and locks it**
+3) **writes it to `doc/03_cv_strategy.md` and locks it**
 4) all subsequent runs must follow it exactly
 
 Once locked, the agent must not silently change:
@@ -163,12 +163,12 @@ See `AGENT_RULES.md` for the full authority and lock-in policy.
 
 ## Data Wide Search (Minimal Context Bootstrapping)
 
-When the user **only drops a dataset** into `projects/<project_slug>/data/` without filling `docs/00_problem_statement.md` or `01_data_card.md`, the agent can bootstrap context via **wide search**:
+When the user **only drops a dataset** into `projects/<project_slug>/data/` without filling `doc/00_problem_statement.md` or `01_data_card.md`, the agent can bootstrap context via **wide search**:
 
 1. **Infer from data**: Run `df.info()`, schema scan, sample rows; identify likely target, ID, datetime columns; guess task type.
 2. **Web / domain search**: Search for similar problems, Kaggle notebooks, domain best practices; collect feature ideas (ratios, aggregations, time transforms, encodings).
 3. **User–agent interaction**: Summarize findings; propose inferred target, task type, and feature candidates; ask user to confirm or correct.
-4. **Document and implement**: Write inferred content into `docs/*`; add the "Data Wide Search" subsection to `docs/04_modeling.md`; implement fold-safe features in `src/features.py`.
+4. **Document and implement**: Write inferred content into `doc/*`; add the "Data Wide Search" subsection to `doc/04_modeling.md`; implement fold-safe features in `src/features.py`.
 
 See `SKILL.md` §1.5 and `templates/doc/04_modeling.md` §2.3 for the full protocol.
 

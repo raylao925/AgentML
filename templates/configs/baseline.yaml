@@ -4,7 +4,7 @@ project:
   run_tag: "baseline"
   seed: 42  # Default seed, used as fallback
   # Per-model seeds for ensemble diversity (useful for hill climbing)
-  seed_list: [42,123,456,789,1024,2048]
+  seed_list: [{{SEED1}}]  # e.g. [42, 2021, 7, 1234]
 
 task:
   family: "classification_binary"  # classification_binary | classification_multiclass | regression | ranking | time_series
@@ -48,9 +48,9 @@ features:
       smoothing: 10
       min_samples_leaf: 50
     lag_features:
-      lags: [1, 7, 14]
+      lags: [{{LAG1}}, {{LAG2}}, {{LAG3}}]  # e.g. [1, 7, 14]
     rolling_features:
-      windows: [7, 14, 28]
+      windows: [{{WINDOW1}}, {{WINDOW2}}, {{WINDOW3}}]  # e.g. [7, 14, 28]
       stats: ["mean", "std"]
     featuretools:
       trans_primitives: ["day", "month", "year"]
