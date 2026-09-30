@@ -9,13 +9,19 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Scaffold an AgentML project from templates/."
+        description="Scaffold an AgentML project from the agentml skill's project template."
     )
     parser.add_argument("project_slug", help="Folder name under projects/")
     parser.add_argument(
         "--python-version",
         default="3.11",
         help="Python version used for uv venv (default: 3.11)",
+    )
+    parser.add_argument(
+        "--mode",
+        default="customer",
+        choices=["customer", "kaggle"],
+        help="Project mode written into project.yaml (default: customer)",
     )
     parser.add_argument(
         "--setup-venv",
@@ -30,17 +36,35 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# The template payload is owned by the skill (single source of truth).
+TEMPLATE_REL = Path(".agents") / "skills" / "agentml" / "assets" / "project-template"
+LEGACY_TEMPLATE_REL = Path("templates")
+
+
 def find_repo_root(script_path: Path) -> Path:
+    """Locate the repo root: the closest ancestor containing `projects/` or `.git`."""
     # Expected location: <repo>/.agents/skills/agentml/scripts/init_agentml_project.py
-    expected = script_path.resolve().parents[4]
-    if (expected / "templates").exists() and (expected / "projects").exists():
-        return expected
+    for candidate in script_path.resolve().parents:
+        if (candidate / "projects").exists() or (candidate / ".git").exists():
+            return candidate
 
-    for parent in script_path.resolve().parents:
-        if (parent / "templates").exists() and (parent / "projects").exists():
-            return parent
+    raise FileNotFoundError("Cannot locate repository root (expected a parent with projects/ or .git).")
 
-    raise FileNotFoundError("Cannot locate repository root containing templates/ and projects/.")
+
+def resolve_template_dir(repo_root: Path) -> Path:
+    """Resolve the template payload; accept a legacy root-level `templates/` too."""
+    payload = repo_root / TEMPLATE_REL
+    if payload.exists():
+        return payload
+
+    legacy = repo_root / LEGACY_TEMPLATE_REL
+    if legacy.exists():
+        print(f"Warning: skill payload not found; falling back to legacy '{legacy}'.")
+        return legacy
+
+    raise FileNotFoundError(
+        f"Template payload not found. Looked for '{payload}' and '{legacy}'."
+    )
 
 
 def replace_placeholder(file_path: Path, project_slug: str) -> None:
@@ -49,6 +73,22 @@ def replace_placeholder(file_path: Path, project_slug: str) -> None:
     content = file_path.read_text(encoding="utf-8")
     content = content.replace("{{PROJECT_NAME}}", project_slug)
     file_path.write_text(content, encoding="utf-8")
+
+
+def stamp_project_yaml(project_dir: Path, project_slug: str, mode: str) -> None:
+    """Render project.yaml: project name + mode + creation date (no other file is stamped)."""
+    import datetime as _dt
+    import re
+
+    path = project_dir / "project.yaml"
+    if not path.exists():
+        return
+    content = path.read_text(encoding="utf-8")
+    content = content.replace("{{PROJECT_NAME}}", project_slug)
+    content = content.replace("{{CREATED_AT}}", _dt.date.today().isoformat())
+    # Force the requested mode regardless of the template default.
+    content = re.sub(r'(?m)^(\s*mode:\s*)"[^"]*"', rf'\g<1>"{mode}"', content)
+    path.write_text(content, encoding="utf-8")
 
 
 def setup_venv(project_dir: Path, requirements_file: Path, python_version: str) -> None:
@@ -70,8 +110,9 @@ def main() -> int:
     script_path = Path(__file__)
     repo_root = find_repo_root(script_path)
 
-    template_dir = repo_root / "templates"
+    template_dir = resolve_template_dir(repo_root)
     projects_dir = repo_root / "projects"
+    projects_dir.mkdir(parents=True, exist_ok=True)
     project_dir = projects_dir / args.project_slug
     requirements_file = repo_root / "requirements.txt"
 
@@ -92,21 +133,27 @@ def main() -> int:
         project_dir / "data" / "interim",
         project_dir / "data" / "processed",
         project_dir / "runs",
+        project_dir / "reports",
+        project_dir / "deliverables",
     ]
     for directory in required_dirs:
         directory.mkdir(parents=True, exist_ok=True)
 
     replace_placeholder(project_dir / "README.md", args.project_slug)
     replace_placeholder(project_dir / "program.md", args.project_slug)
+    stamp_project_yaml(project_dir, args.project_slug, args.mode)
 
     if args.setup_venv:
         setup_venv(project_dir, requirements_file, args.python_version)
 
     print(f"Scaffold completed: {project_dir}")
+    print(f"Template payload used: {template_dir}")
+    print(f"Mode: {args.mode}")
     print("Next steps:")
     print("  1) Fill doc/00_problem_statement.md and doc/01_data_card.md")
-    print("  2) Confirm doc/03_cv_strategy.md")
-    print("  3) Run: python src/train.py --config configs/baseline.yaml")
+    print("  2) Declare your data source in data_sources/<name>.yaml, then: agentml ingest")
+    print("  3) Confirm doc/04_cv_strategy.md (lock-in)")
+    print("  4) Run: python src/train.py --config configs/baseline.yaml")
     return 0
 
 

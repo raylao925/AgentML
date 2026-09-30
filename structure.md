@@ -24,19 +24,21 @@ projects/<project_slug>/
   doc/
     00_problem_statement.md  # Task definition (tabular/time-series/ranking/multiclass/binary)
     01_data_card.md          # Data schema + leakage checklist
-    02_eda.md                # EDA template (insights → actions)
-    03_cv_strategy.md        # CV authority (group key/time col user-defined)
-    04_modeling.md           # Modeling, hyperparams, KFold flow, ablation
+    02_eda.md                # EDA conclusions (report artifact: memory/eda_report.md)
+    03_features_engineering.md  # Feature registry + fold-safe policy
+    04_cv_strategy.md        # CV authority (group key/time col user-defined)
     05_ensemble.md           # Ensemble design (OOF stacking/blending)
     06_experiment_log.md     # Ledger spec (results.json schema + keep/discard)
-    07_deployment_or_submission.md  # Inference/deploy/submission
+    07_modeling.md           # Modeling, hyperparams, CV procedure, ablation
+    08_deployment_or_submission.md  # Inference/deploy/submission
 
   configs/
     baseline.yaml            # Runnable baseline (agent starting point)
     search_space.yaml        # Agent explorable boundary (models/params/feature flags)
 
   src/
-    data.py                  # load/clean/split (must follow doc/03_cv_strategy.md)
+    data.py                  # load/clean/split (must follow doc/04_cv_strategy.md)
+    eda.py                   # EDA report generator (writes memory/eda_report.md)
     features.py              # Feature engineering (must be fold-safe; manual + auto feature)
     train.py                 # Training entry (reads configs, writes runs/<run_id> + results.json)
     evaluate.py              # Metric computation (fixed definition; recompute OOF metrics)

@@ -10,6 +10,26 @@ skills-lock.json
 .vscode/
 projects/
 *.so
+
+# --- AgentML generated artifacts (project-local: never commit) ---
+# These are produced by the template payload at any depth (repo root,
+# .agents/skills/agentml/assets/project-template/, projects/<slug>/).
+runs/
+reports/
+deliverables/
+models/
+data/raw/
+data/interim/
+data/processed/
+data/sample/
+*.parquet
+*.pkl
+*.joblib
+*.onnx
+kaggle.json
+kaggle_state.json
+Thumbs.db
+.DS_Store
 # Distribution / packaging
 .Python
 build/

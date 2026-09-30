@@ -1,10 +1,15 @@
 # AgentML Framework Skills
 
+> **SSoT (Phase 0):** the authoritative skill is `.agents/skills/agentml/`
+> (`SKILL.md` + `references/` + `assets/project-template/`). This root `SKILL.md` is the
+> human-readable index; if it ever disagrees with the skill, the skill wins.
+
 ## 0) Project Environment Management (uv)
 Because each project may choose different ML/deep-learning libraries (based on `task.target`, `metric`, and the model/feature search space),
 AgentML uses `uv` to create a dedicated virtual environment per new project.
 
-When a new folder `projects/<project_slug>/` is created (copy from `templates/`):
+When a new folder `projects/<project_slug>/` is created (scaffolded from
+`.agents/skills/agentml/assets/project-template/`):
 1) Ensure `uv` is installed on the host machine (one-time).
 2) Create a project-local venv (recommended path: `projects/<project_slug>/.venv`):
    - Use a fixed python version if the runner supports it.
@@ -23,9 +28,26 @@ When a new folder `projects/<project_slug>/` is created (copy from `templates/`)
 
 Output: a usable interpreter for that project so `python src/train.py` / `evaluate.py` / `infer.py` runs inside the venv.
 
-This document lists the core *agent skills* AgentML expects a runner / OpenClaw agent to perform.
-Each skill is written in a way that can be mapped to an implementation module, prompt step,
-or automated checklist.
+## 0.5) Reference Index (where the rules now live)
+
+The workflow/policy pages were split out of this file into the skill. Read them on demand:
+
+| Topic (former §) | Reference |
+|---|---|
+| Folder / file / CLI contract | `.agents/skills/agentml/references/00_contract.md` |
+| Lifecycle & hard gates | `.agents/skills/agentml/references/01_lifecycle.md` |
+| Policy mechanism (CV authority, leakage, test, frozen zones) | `.agents/skills/agentml/references/02_policy.md` |
+| Task discovery (customer mode) | `.agents/skills/agentml/references/03_task_discovery.md` |
+| Ingestion / data-source adapters | `.agents/skills/agentml/references/04_ingestion.md` |
+| Fold-safe features | `.agents/skills/agentml/references/05_features.md` |
+| Modeling / OOF / HPO | `.agents/skills/agentml/references/06_modeling.md` |
+| Ensemble | `.agents/skills/agentml/references/07_ensemble.md` |
+| Delivery (submission / batch scoring / api) | `.agents/skills/agentml/references/08_delivery.md` |
+| Executable guardrails + CI | `.agents/skills/agentml/references/09_guardrails.md` |
+| Kaggle-specific flow | `.agents/skills/agentml/references/sources/kaggle.md` |
+| Scaffold workflow | `.agents/skills/agentml/references/workflow.md` |
+
+Unified CLI: `python .agents/skills/agentml/scripts/agentml.py <cmd>` (see `00_contract.md` §3).
 
 ---
 
@@ -36,9 +58,11 @@ or automated checklist.
 - Load task specs:
   - `doc/00_problem_statement.md`
   - `doc/01_data_card.md`
-  - `doc/03_cv_strategy.md` (if present/locked)
+  - `doc/04_cv_strategy.md` (if present/locked)
 
 Output: a structured “run plan” object containing task family, target, primary metric, CV policy, and allowed change dimensions.
+
+See `references/00_contract.md` + `references/02_policy.md`.
 
 ---
 
@@ -64,27 +88,29 @@ When the user has **only dropped a dataset** into `projects/<project_slug>/data/
 3) **User–agent interaction**:
    - Summarize findings and propose: inferred target, task type, and a short list of feature engineering candidates.
    - Ask user to confirm or correct: target column, positive class (if binary), domain assumptions.
-   - Iterate: refine `doc/01_data_card.md` and `04_modeling.md` based on user feedback.
+   - Iterate: refine `doc/01_data_card.md` and `doc/07_modeling.md` based on user feedback.
 
 4) **Document and implement**:
    - Write inferred/problem-statement and data-card content into `doc/*`.
-   - Add a "Data Wide Search" subsection to `doc/04_modeling.md` (see template) with discovered feature ideas.
+   - Add a "Data Wide Search" subsection to `doc/07_modeling.md` (see template) with discovered feature ideas.
    - Implement fold-safe features in `src/features.py` per `AGENT_RULES` (no leakage).
 
 ### Output
-- Updated `doc/00_problem_statement.md`, `01_data_card.md`, and `04_modeling.md` (Data Wide Search section).
+- Updated `doc/00_problem_statement.md`, `01_data_card.md`, and `07_modeling.md` (Data Wide Search section).
 - A set of feature engineering hypotheses ready for ablation runs.
 
 ---
 
 ## 2) CV Strategy Compliance (Lock-in Mode)
-- If `doc/03_cv_strategy.md` is authoritative (P1), follow it exactly.
+- If `doc/04_cv_strategy.md` is authoritative (P1), follow it exactly.
 - If CV is missing/empty (P2 auto-infer), infer safely using minimal schema/EDA evidence:
   - detect time/group/id candidates
   - detect leakage risk signals
-- Write the inferred rule back to `doc/03_cv_strategy.md` and treat it as locked.
+- Write the inferred rule back to `doc/04_cv_strategy.md` and treat it as locked.
 
 Output: a CV object (cv_type, n_splits, keys, split rules) used consistently by training + any fold-safe preprocessing.
+
+Full rule: `references/02_policy.md` §1 (+ `03_task_discovery.md`, `04_ingestion.md`).
 
 ---
 
@@ -97,6 +123,8 @@ Output: a CV object (cv_type, n_splits, keys, split rules) used consistently by 
 
 Output: a “leakage risk report” for the planned run (pass/fail + reasons).
 
+Full rule: `references/02_policy.md` §2 + executable checks in `references/09_guardrails.md`.
+
 ---
 
 ## 4) Config-Driven Training Orchestration
@@ -105,6 +133,8 @@ Output: a “leakage risk report” for the planned run (pass/fail + reasons).
 - Ensure CV/split, metric definition, and test-tuning rules are not silently violated.
 
 Output: `runs/<run_id>/params.json` (effective config snapshot).
+
+Full rule: `references/01_lifecycle.md` (loop) + `references/02_policy.md` §4/§6.
 
 ---
 
@@ -119,10 +149,12 @@ Output: `runs/<run_id>/params.json` (effective config snapshot).
 
 Output: trained preprocessors per fold and a reproducible `feature_list.json` artifact.
 
+Full rule: `references/05_features.md`.
+
 ---
 
 ## 6) Model Training with OOF Logging
-- Train using CV folds from `doc/03_cv_strategy.md`.
+- Train using CV folds from `doc/04_cv_strategy.md`.
 - Produce OOF predictions per fold and store them in `runs/<run_id>/artifacts/`.
 - Save all required artifacts:
   - `artifacts/model.pkl`
@@ -132,6 +164,8 @@ Output: trained preprocessors per fold and a reproducible `feature_list.json` ar
 
 Output: `runs/<run_id>/metrics.json` + `runs/<run_id>/notes.md`.
 
+Full rule: `references/06_modeling.md`.
+
 ---
 
 ## 7) Metric Evaluation (Fixed Definition)
@@ -140,6 +174,8 @@ Output: `runs/<run_id>/metrics.json` + `runs/<run_id>/notes.md`.
 - For binary classification, ensure target is numeric 0/1 before sklearn metrics.
 
 Output: primary metric mean/std and per-fold diagnostics inside `metrics.json`.
+
+Full rule: `references/02_policy.md` §5.
 
 ---
 
@@ -153,6 +189,8 @@ Output: primary metric mean/std and per-fold diagnostics inside `metrics.json`.
 
 Output: updated `results.json` ledger entry for run traceability.
 
+Full rule: `references/01_lifecycle.md` §Step C + `06_experiment_log.md` spec.
+
 ---
 
 ## 9) Keep/Discard Decision
@@ -161,6 +199,8 @@ Output: updated `results.json` ledger entry for run traceability.
 - If discard, still log a meaningful reason (variance, speed, leakage risk, constraint violation).
 
 Output: `decision.status` and `decision.reason` written into the ledger and/or notes.
+
+Full rule: `references/01_lifecycle.md` §Step D.
 
 ---
 

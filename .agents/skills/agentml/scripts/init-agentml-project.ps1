@@ -12,13 +12,26 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..")
-$templateDir = Join-Path $repoRoot "templates"
 $projectsDir = Join-Path $repoRoot "projects"
 $projectDir = Join-Path $projectsDir $ProjectSlug
 $requirementsFile = Join-Path $repoRoot "requirements.txt"
 
-if (-not (Test-Path $templateDir)) {
-    throw "Template directory not found: $templateDir"
+# The template payload is owned by the skill (single source of truth).
+$payloadDir = Join-Path $repoRoot ".agents\skills\agentml\assets\project-template"
+$legacyDir = Join-Path $repoRoot "templates"
+if (Test-Path $payloadDir) {
+    $templateDir = $payloadDir
+}
+elseif (Test-Path $legacyDir) {
+    Write-Warning "Skill payload not found; falling back to legacy '$legacyDir'."
+    $templateDir = $legacyDir
+}
+else {
+    throw "Template payload not found: $payloadDir"
+}
+
+if (-not (Test-Path $projectsDir)) {
+    New-Item -ItemType Directory -Path $projectsDir -Force | Out-Null
 }
 
 if (Test-Path $projectDir) {
@@ -81,7 +94,8 @@ if ($SetupVenv) {
 }
 
 Write-Host "Scaffold completed:" $projectDir
+Write-Host "Template payload used:" $templateDir
 Write-Host "Next steps:"
-Write-Host "  1) Fill docs/00_problem_statement.md and docs/01_data_card.md"
-Write-Host "  2) Confirm docs/03_cv_strategy.md"
+Write-Host "  1) Fill doc/00_problem_statement.md and doc/01_data_card.md"
+Write-Host "  2) Confirm doc/04_cv_strategy.md (lock-in)"
 Write-Host "  3) Run: python src/train.py --config configs/baseline.yaml"

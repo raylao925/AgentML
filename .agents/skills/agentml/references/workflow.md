@@ -1,9 +1,9 @@
 # AgentML Project Bootstrap Workflow
 
-This reference maps the repository's root `SKILL.md` and `templates/` into a concrete project creation workflow.
+This reference maps the repository's root `SKILL.md` and this skill's template payload (`assets/project-template/`) into a concrete project creation workflow.
 
 ## Stage 1: Scaffold Creation
-- Copy `templates/` into `projects/<project_slug>/`.
+- Copy `assets/project-template/` into `projects/<project_slug>/`.
 - Preserve key files:
   - `program.md`
   - `AGENT_RULES.md`
@@ -31,7 +31,7 @@ From root `SKILL.md` section 0:
 Before first training run:
 - Read `program.md`.
 - Enforce `AGENT_RULES.md`.
-- Confirm CV authority in `docs/03_cv_strategy.md` (lock-in mode).
+- Confirm CV authority in `doc/04_cv_strategy.md` (lock-in mode).
 
 ## Stage 5: Readiness Gate
 Project is ready when:
