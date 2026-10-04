@@ -161,9 +161,12 @@ def main():
     
     run_ids = ensemble_metadata["run_ids"]
     weights = np.array(ensemble_metadata["weights"])
-    
+    meta_block = ensemble_metadata.get("meta")
+
     print(f"Ensemble run IDs: {run_ids}")
     print(f"Weights: {weights}")
+    if meta_block:
+        print(f"Stacking meta model: {meta_block.get('type')} ({meta_block.get('fitted_folds')} folds)")
     
     # Load config from first run
     first_run_dir = PROJECT_ROOT / "runs" / run_ids[0]
@@ -284,7 +287,23 @@ def main():
         else:
             print(f"Warning: Could not load all OOF predictions ({len(oof_preds_list)}/{len(all_preds)}), using pre-computed weights")
     
-    ensemble_preds = np.average(pred_matrix, axis=1, weights=weights)
+    if meta_block and not args.optimize_weights:
+        # Stacking inference: apply the persisted meta model to the member probabilities.
+        coef = np.asarray(meta_block.get("coef", []), dtype=float)
+        if len(coef) != pred_matrix.shape[1]:
+            raise ValueError(
+                f"Stacking meta coef size {len(coef)} != member count {pred_matrix.shape[1]}"
+            )
+        z = pred_matrix @ coef + float(meta_block.get("intercept", 0.0))
+        if meta_block.get("type") == "logistic":
+            ensemble_preds = 1.0 / (1.0 + np.exp(-np.clip(z, -500, 500)))
+        else:
+            ensemble_preds = z
+        print("Combination: stacking meta model (sigmoid(coef . p + intercept))")
+    else:
+        if meta_block and args.optimize_weights:
+            print("Warning: --optimize_weights ignored for stacking ensembles (meta model wins).")
+        ensemble_preds = np.average(pred_matrix, axis=1, weights=weights)
     
     print(f"Ensemble predictions shape: {ensemble_preds.shape}")
     print(f"Ensemble predictions range: [{ensemble_preds.min():.4f}, {ensemble_preds.max():.4f}]")

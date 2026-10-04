@@ -16,7 +16,7 @@ Create a consistent `projects/<project_slug>/` workspace that follows:
 ## Reference index (read on demand)
 `references/00_contract.md` · `01_lifecycle.md` · `02_policy.md` · `03_task_discovery.md` ·
 `04_ingestion.md` · `05_features.md` · `06_modeling.md` · `07_ensemble.md` ·
-`08_delivery.md` · `09_guardrails.md` · `sources/kaggle.md` · `workflow.md`.
+`08_delivery.md` · `09_guardrails.md` · `10_iteration_loop.md` · `sources/kaggle.md` · `workflow.md`.
 
 Root `SKILL.md` is the human-readable index; if it disagrees with this skill set, this wins.
 

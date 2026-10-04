@@ -1,5 +1,6 @@
 """
-Smoke test: synthetic 200-row project, 2-fold CV, train → evaluate → ensemble.
+Smoke test: synthetic 200-row project, 2-fold CV, train → evaluate → ensemble
+(weighted_average + stacking) → tune (Optuna study + final retrain).
 
 Run from repo root:
   python tests/test_smoke.py
@@ -171,6 +172,102 @@ class AgentMLSmokeTest(unittest.TestCase):
             self.assertEqual(meta["run_ids"], [run_id, run_id_b])
             self.assertEqual(len(meta["weights"]), 2)
             self.assertAlmostEqual(sum(meta["weights"]), 1.0, places=6)
+
+            # --- stacking ensemble (fold-safe meta model over the member OOF) ---
+            stack_id = "smoke_stack"
+            _run(
+                [
+                    py,
+                    "src/ensemble.py",
+                    "--run_ids",
+                    f"{run_id},{run_id_b}",
+                    "--method",
+                    "stacking",
+                    "--output_run_id",
+                    stack_id,
+                ],
+                proj,
+            )
+            stack_meta = json.loads(
+                (proj / "runs" / stack_id / "ensemble_metadata.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(stack_meta["method"], "stacking")
+            self.assertIn("meta", stack_meta)
+            self.assertEqual(stack_meta["meta"]["type"], "logistic")
+            self.assertEqual(len(stack_meta["meta"]["coef"]), 2)
+            self.assertGreater(stack_meta["meta"]["fitted_folds"], 0)
+
+            stack_oof = pd.read_parquet(
+                proj / "runs" / stack_id / "artifacts" / "ensemble_oof_predictions.parquet"
+            )
+            self.assertEqual(len(stack_oof), len(oof))
+            self.assertGreater(
+                roc_auc_score(stack_oof["target"], stack_oof["ensemble_oof_pred"]), 0.5
+            )
+
+            # --- Optuna HPO over the locked CV: study record + final retrain record ---
+            study_id = "smoke_tune"
+            _run(
+                [
+                    py,
+                    "src/tune.py",
+                    "--config",
+                    "configs/smoke.yaml",
+                    "--model",
+                    "LightGBM",
+                    "--n-trials",
+                    "2",
+                    "--timeout-s",
+                    "600",
+                    "--study-id",
+                    study_id,
+                ],
+                proj,
+            )
+            study_dir = proj / "runs" / study_id
+            best_path = study_dir / "best_params.json"
+            self.assertTrue(best_path.exists())
+            self.assertTrue((study_dir / "trials.csv").exists())
+            best = json.loads(best_path.read_text(encoding="utf-8"))
+            self.assertEqual(best["model"], "LightGBM")
+            self.assertEqual(best["n_trials"], 2)
+            self.assertIn("learning_rate", best["params"])
+
+            final_id = "hpo_LightGBM_seed42_cv2"
+            final_dir = proj / "runs" / final_id
+            self.assertTrue((final_dir / "params.json").exists())
+            self.assertTrue((final_dir / "metrics.json").exists())
+            self.assertTrue((final_dir / "artifacts" / "model.pkl").exists())
+            self.assertTrue((final_dir / "artifacts" / "oof_predictions.parquet").exists())
+
+            ledger_after = json.loads((proj / "results.json").read_text(encoding="utf-8"))
+            self.assertEqual([r["run_id"] for r in ledger_after[-2:]], [study_id, final_id])
+            self.assertEqual(ledger_after[-1]["decision"]["status"], "keep")
+
+    def test_search_space_covers_buildable_models(self):
+        """Every model src/models.py::create_model can build must have an HPO space."""
+        space_path = TEMPLATE / "configs" / "search_space.yaml"
+        if not space_path.is_file():
+            self.skipTest(f"Template payload missing: {space_path}")
+
+        space = yaml.safe_load(space_path.read_text(encoding="utf-8"))
+        models = space["search"]["hyperparams"]
+        # XGBRanker is intentionally out: create_model has no branch for it yet.
+        buildable = [
+            "LightGBM",
+            "XGBoost",
+            "CatBoost",
+            "LogisticRegression",
+            "ElasticNet",
+            "LGBMRanker",
+        ]
+        for name in buildable:
+            self.assertIn(name, models, f"{name} is buildable but has no search space")
+            self.assertTrue(models[name], f"{name} search space is empty")
+            for key, spec in models[name].items():
+                self.assertIn(
+                    spec["type"], {"log_uniform", "uniform", "int", "choice"}, f"{name}.{key}"
+                )
 
 
 if __name__ == "__main__":

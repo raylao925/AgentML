@@ -28,10 +28,17 @@
 - Metric = NDCG@k, higher-is-better.
 
 ## HPO
+- Runtime: `python src/tune.py --config configs/baseline.yaml --model <M> --n-trials 60
+  --timeout-s 7200` (or `agentml tune ...`). Reads `search_space.yaml:search.hyperparams.<M>`,
+  objective = mean per-fold primary metric over the **locked** folds; prunes lagging trials;
+  writes `runs/tune_*/{study.sqlite3, trials.csv, best_params.json}` + one ledger record per study
+  plus one final-retrain run (`hpo_<M>_seed<seed>_cv<n>`, attribution: one param set per run).
 - Search inside `search_space.yaml:hyperparams`. At most one hyperparam set per run when
   no feature change is present (attribution).
 - Early stopping uses the **validation fold**, never the test set.
 - Keep seeds fixed; use `seed_list` for ensemble diversity.
+- HPO is queue item family #3 in `10_iteration_loop.md` §3 — run it when evidence says the
+  current params sit far from the space midpoints.
 
 ## Output contract
 `runs/<run_id>/`: `params.json`, `metrics.json` (per-fold + mean/std), `notes.md`,

@@ -52,6 +52,13 @@ Append exactly one record to `results.json` (schema = `06_experiment_log.md`).
 Thresholds live in `configs/search_space.yaml:policy`. If discarded, still log a reason
 (variance / speed / leakage risk / constraint violation).
 
+### Steps E–G — Keep looping (see `10_iteration_loop.md`)
+- **E — Queue refresh** (every round): update the `doc/06` §G round queue with the new evidence.
+- **F — Divergence** (queue empty): invent/rank candidates from the idea bank
+  (`10_iteration_loop.md` §3–4) before considering the work done.
+- **G — Stop check**: plateau (3 rounds Δ < improve_threshold) / budget / deadline / exhaustion —
+  stop only with a documented retrospective (`10_iteration_loop.md` §5).
+
 ## Reproducibility
 - Fix seeds (`seed`, `seed_list`) and record `data_version`, `feature_version`, `code_hash`.
 - Same data + config ⇒ same artifacts.

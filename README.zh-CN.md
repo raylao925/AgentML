@@ -30,7 +30,7 @@ AgentML/
       data_sources/    # 資料入口規格（local_files / kaggle_competition / database ...）
       doc/             # 00-08 markdown 範本
       src/             # data.py, eda.py, features.py, models.py, train.py,
-                       # train_multi_model.py, evaluate.py, ensemble.py,
+                       # train_multi_model.py, evaluate.py, tune.py, ensemble.py,
                        # infer.py, infer_ensemble.py, ingest.py, deliver.py
       memory/          # MEMORY.md, debugging.md, eda_report.md
 

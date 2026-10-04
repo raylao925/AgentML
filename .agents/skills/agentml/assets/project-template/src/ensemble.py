@@ -83,13 +83,74 @@ def main():
         oof_list.append(preds)
 
     oof_mat = np.column_stack(oof_list)
+    meta_block: dict | None = None
 
     if args.method == "weighted_average":
         weights = np.ones(oof_mat.shape[1], dtype=float)
         weights = weights / weights.sum()
         ensemble_oof = np.average(oof_mat, axis=1, weights=weights)
+    elif args.method == "stacking":
+        # Fold-safe stacking: base OOFs are already out-of-fold, and the meta model is
+        # fit on the OTHER folds' OOF rows to predict each held-out fold (meta-OOF).
+        # Supported families: classification_binary (logistic meta) and regression (ridge meta).
+        from sklearn.linear_model import LogisticRegression, Ridge
+
+        if base_df is None or target_col not in base_df.columns:
+            raise ValueError("stacking requires the target column in the base OOF frame")
+        y_meta = base_df[target_col].values
+        task_family = "classification_binary"
+        first_params = PROJECT_ROOT / "runs" / run_ids[0] / "params.json"
+        if first_params.exists():
+            with open(first_params, "r", encoding="utf-8") as f:
+                task_family = json.load(f).get("task", {}).get("family", "classification_binary")
+        if task_family not in ("classification_binary", "regression"):
+            raise NotImplementedError(
+                f"stacking currently supports classification_binary/regression, got {task_family}"
+            )
+
+        if "fold" in base_df.columns:
+            fold_ids = base_df["fold"].values
+        else:
+            fold_ids = np.zeros(len(y_meta), dtype=int)
+        unique_folds = np.unique(fold_ids)
+        preds = np.zeros(len(y_meta), dtype=float)
+        coef_sum = np.zeros(oof_mat.shape[1], dtype=float)
+        intercept_sum = 0.0
+        n_fitted = 0
+        for fid in unique_folds:
+            tr = np.where(fold_ids != fid)[0]
+            va = np.where(fold_ids == fid)[0]
+            if not len(tr) or not len(va):
+                continue
+            if task_family == "regression":
+                meta = Ridge(alpha=1.0)
+            else:
+                meta = LogisticRegression(max_iter=1000)
+            meta.fit(oof_mat[tr], y_meta[tr])
+            preds[va] = meta.predict(oof_mat[va]) if task_family == "regression" else (
+                meta.predict_proba(oof_mat[va])[:, 1]
+            )
+            coef_sum += np.asarray(meta.coef_, dtype=float).ravel()
+            intercept_sum += float(np.asarray(meta.intercept_).ravel()[0])
+            n_fitted += 1
+        if n_fitted == 0:
+            raise ValueError("stacking: no usable folds found in the base OOF frame")
+
+        coefs = coef_sum / n_fitted
+        intercept = intercept_sum / n_fitted
+        abs_sum = float(np.abs(coefs).sum()) or 1.0
+        weights = np.abs(coefs) / abs_sum  # legacy fallback blend (documented in metadata)
+        ensemble_oof = preds
+        meta_block = {
+            "type": "logistic" if task_family == "classification_binary" else "ridge",
+            "family": task_family,
+            "coef": coefs.tolist(),
+            "intercept": intercept,
+            "fitted_folds": int(n_fitted),
+            "note": "inference applies sigmoid(coef . p + intercept) to member probabilities",
+        }
     else:
-        raise NotImplementedError("Stacking template needs meta-model implementation.")
+        raise ValueError(f"Unknown ensemble method: {args.method} (weighted_average|stacking)")
 
     oof_df = pd.DataFrame({"ensemble_oof_pred": ensemble_oof})
     if base_df is not None and target_col in base_df.columns:
@@ -105,6 +166,8 @@ def main():
         "output_run_id": out_run_id,
         "n_models": len(run_ids),
     }
+    if meta_block is not None:
+        ensemble_metadata["meta"] = meta_block
     with open(out_dir / "ensemble_metadata.json", "w", encoding="utf-8") as f:
         json.dump(ensemble_metadata, f, indent=2, ensure_ascii=False)
 

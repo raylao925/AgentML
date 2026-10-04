@@ -58,6 +58,11 @@ Expand-Archive -Path {competition_id}.zip -DestinationPath .
 kaggle competitions submit -c {competition_id} -f {submission_path} -m "提交備註"
 ```
 
+**提交後必做（LB 反饋環）**：把成績回填 ledger — 在該 run 的 `results.json` 記錄加上 `lb`
+區塊（schema 見 payload `doc/06_experiment_log.md` §H：`score` / `rank` / `submitted_at` /
+`cv_minus_lb`）。`cv_minus_lb` 的絕對值 > CV std → 標記 investigate（分布漂移或 OOF 過擬合），
+**不得**因此更動已鎖定的 CV；公開榜用法受 `doc/00_problem_statement.md` 的提交預算約束。
+
 **參數說明：**
 - `-c`：競賽 ID
 - `-f`：提交檔案路徑（CSV）

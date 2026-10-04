@@ -111,6 +111,23 @@ Write run result to `results.json` (format see `doc/06_experiment_log.md` Spec).
   - or primary_metric_mean similar but secondary improves significantly (within limits)
 - If discard: still record reason (overfit / high variance / too slow / leakage risk)
 
+### Step E — Refresh the Round Queue (every round)
+- Update the `doc/06_experiment_log.md` §G round queue with this round's evidence
+  (re-rank, promote/demote, drop invalidated candidates). Ranked by expected Δ per unit cost,
+  max 5 live entries. Protocol: skill `references/10_iteration_loop.md` §2.
+
+### Step F — Divergence (only when the queue is empty)
+- Run a creative divergence pass over the idea bank (`references/10_iteration_loop.md` §3–4):
+  generate → kill (frozen zones / no measurable prediction / over budget) → rank → promote ≤5.
+- An empty queue is not a reason to stop; it is the trigger for Step F.
+
+### Step G — Stop Check (only exit condition)
+- Stop when ONE of: plateau (3 consecutive rounds Δ < improve_threshold) · budget exhausted ·
+  user/deadline stop · idea families exhausted (`references/10_iteration_loop.md` §5).
+- On stop: append the final `G.x` retrospective (best run, contributing KEEPs, discarded
+  families + why, LB score if any per `doc/06` §H, reusable lessons).
+- Never stop merely because the pipeline runs once — that is the Step-0 condition.
+
 ---
 
 ## 5) Output Contract (Must Produce)

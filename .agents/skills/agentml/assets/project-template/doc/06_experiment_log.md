@@ -240,3 +240,60 @@ Recommended format for each run's notes.md:
 ## Next Step
 (Next direction worth trying)
 ```
+
+---
+
+## G) Round Queue (living section — the iteration engine)
+
+Every project **must** keep a round queue in this file (append a `G.x` block per round; latest
+round at the bottom). The queue is what turns "one pipeline pass" into an improvement loop —
+protocol: `references/10_iteration_loop.md`.
+
+Rules:
+1. After **every** logged run (Step D of `01_lifecycle.md`), refresh the queue: re-rank remaining
+   candidates, add newly discovered ideas, drop invalidated ones.
+2. Each candidate carries: hypothesis · expected Δ (with reasoning) · cost estimate ·
+   change family · evidence link. Rank by **expected value per unit cost**.
+3. Max 5 live candidates (small visible working set). Ideas beyond that stay in the idea bank
+   (`references/10_iteration_loop.md` §3) until promoted.
+4. Queue is empty + no stopping criterion met → run a **creative divergence pass**
+   (`references/10_iteration_loop.md` §4) before declaring done.
+
+Template:
+
+```markdown
+### G.x — Round <n> (YYYY-MM-DD)
+- Current best: <run_id> @ <primary metric>
+- Executed this round: <run_id> → KEEP/DISCARD (Δ = …, rule = …)
+- Queue (ranked by EV/cost):
+  1. <hypothesis> | expected Δ … | cost … | family: features|HPO|seeds|diversity|ensemble|postproc
+  2. …
+- Stopping check: plateau rounds k/K · budget used …/… (see 10_iteration_loop §5)
+```
+
+---
+
+## H) Leaderboard Feedback Block (optional, mode = kaggle)
+
+Online competitions close the loop by recording the LB score next to the CV score. Add an
+optional `lb` object to the ledger record of the run that was submitted:
+
+```json
+"lb": {
+  "competition": "playground-series-sXXXeXX",
+  "split": "public",
+  "score": 0.9412,
+  "rank": 123,
+  "submitted_at": "2026-10-04T12:00:00+00:00",
+  "submission_file": "deliverables/submission.csv",
+  "cv_minus_lb": 0.0004
+}
+```
+
+Rules:
+- `cv_minus_lb = metrics.primary.mean - lb.score`; a gap larger than the CV std is an
+  **investigate** signal (distribution shift / OOF overfit), not an automatic retrain.
+- Never tune on `lb.split == "public"` beyond the submission budget declared in
+  `doc/00_problem_statement.md`; the private split is untouchable.
+- Submission CLI: `references/sources/kaggle.md` (`kaggle competitions submit ...`), then append
+  the `lb` block with `agentml ledger`-compatible JSON (correction records only, never rewrite).

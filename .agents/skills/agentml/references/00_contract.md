@@ -19,7 +19,7 @@ projects/<project_slug>/
   src/                            # AGENT-WRITABLE zone (see 02_policy §4)
     data.py  eda.py  features.py  models.py
     train.py  train_multi_model.py  evaluate.py
-    ensemble.py  infer.py  infer_ensemble.py
+    tune.py  ensemble.py  infer.py  infer_ensemble.py
     ingest.py  deliver.py        # data entry / delivery adapters
   memory/  (MEMORY.md, debugging.md, eda_report.md)
   data/    (raw/ interim/ processed/)      # raw is gitignored
@@ -55,7 +55,8 @@ python .agents/skills/agentml/scripts/agentml.py ingest --source data_sources/<n
 python .agents/skills/agentml/scripts/agentml.py eda [--project <slug>]
 python .agents/skills/agentml/scripts/agentml.py cv-lock [--project <slug>]
 python .agents/skills/agentml/scripts/agentml.py run [--project <slug>] [--config configs/baseline.yaml] [--models ...] [--run-id ...]
-python .agents/skills/agentml/scripts/agentml.py ensemble --run_ids a,b [--method weighted_average] [--project <slug>]
+python .agents/skills/agentml/scripts/agentml.py tune --model LightGBM [--n-trials 60] [--timeout-s 7200] [--project <slug>]
+python .agents/skills/agentml/scripts/agentml.py ensemble --run_ids a,b [--method weighted_average|stacking] [--project <slug>]
 python .agents/skills/agentml/scripts/agentml.py infer --run_id <id> [--ensemble] [--out path.csv] [--project <slug>]
 python .agents/skills/agentml/scripts/agentml.py deliver --run_id <id> [--mode batch_scoring] [--threshold 0.5]
 python .agents/skills/agentml/scripts/agentml.py ledger verify|best|report [--project <slug>]

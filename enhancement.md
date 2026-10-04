@@ -401,6 +401,15 @@ splits_hint: { group_key: customer_id, time_col: snapshot_date }   # 供 cv-lock
 ### Phase 5 — 既有專案遷移
 - [ ] `agentml migrate projects/<slug>`（補 `project.yaml`、重編號 doc、驗證 ledger）
 
+### Phase 6 — 迭代迴圈 + runtime 缺口（2026-10-05）
+- [x] `references/10_iteration_loop.md`：多輪協議（queue refresh E / creative divergence F /
+  stopping criteria G + idea bank + 反模式）；`01_lifecycle` Steps E–G、payload `program.md` §4
+  Steps E–G、payload `doc/06` §G round queue 章節
+- [x] payload `src/tune.py`（Optuna HPO，locked folds）+ `agentml tune` CLI + `00_contract`/`06_modeling` 對齊
+- [x] `ensemble.py --method stacking` 落地（fold-safe meta-OOF + `meta` block）+ `infer_ensemble`
+  端接（sigmoid(coef·p+b)）— payload 與 `projects/playground-series-s6e9` 皆已同步
+- [x] LB 反饋環：payload `doc/06` §H `lb` 區塊 + `sources/kaggle.md` 提交後回填規則
+
 ### P2 殘項（非阻斷）
 - [x] `requirements.txt` 補 `joblib` / `kaggle` / `openpyxl`（另註解 `sqlalchemy` 選用）
 - [x] `src/__init__.py` 已建立（payload）

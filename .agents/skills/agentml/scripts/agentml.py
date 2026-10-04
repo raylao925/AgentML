@@ -12,6 +12,7 @@ Commands:
   cv-lock    Write/refresh locked_hash in doc/04_cv_strategy.md
   run        Train (single via train.py, or --models via train_multi_model.py)
   ensemble   Build an ensemble from existing runs
+  tune       Optuna HPO over the locked CV (src/tune.py)
   infer      Score test data (single run or ensemble)
   deliver    Produce deliverables (submission_csv | batch_scoring | api_contract)
   ledger     verify | best | report over results.json
@@ -209,6 +210,17 @@ def cmd_ensemble(args) -> int:
     return _py(pdir / "src" / "ensemble.py", extra, cwd=pdir)
 
 
+def cmd_tune(args) -> int:
+    pdir = _project_dir(args.project)
+    extra = ["--config", args.config, "--model", args.model,
+             "--n-trials", str(args.n_trials), "--timeout-s", str(args.timeout_s)]
+    if args.study_id:
+        extra += ["--study-id", args.study_id]
+    if args.no_final_run:
+        extra.append("--no-final-run")
+    return _py(pdir / "src" / "tune.py", extra, cwd=pdir)
+
+
 def cmd_infer(args) -> int:
     pdir = _project_dir(args.project)
     if args.ensemble:
@@ -385,6 +397,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--output_run_id", default=None)
     s.add_argument("--project", default=None)
     s.set_defaults(func=cmd_ensemble)
+
+    s = sub.add_parser("tune", help="Optuna HPO over the locked CV (src/tune.py)")
+    s.add_argument("--model", default="LightGBM")
+    s.add_argument("--config", default="configs/baseline.yaml")
+    s.add_argument("--n-trials", dest="n_trials", type=int, default=60)
+    s.add_argument("--timeout-s", dest="timeout_s", type=int, default=7200)
+    s.add_argument("--study-id", dest="study_id", default=None)
+    s.add_argument("--no-final-run", dest="no_final_run", action="store_true")
+    s.add_argument("--project", default=None)
+    s.set_defaults(func=cmd_tune)
 
     s = sub.add_parser("infer", help="Score test data")
     s.add_argument("--run_id", default=None)

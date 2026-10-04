@@ -6,7 +6,14 @@
 ## Methods
 - **weighted_average** (default): weighted blend of per-model OOF predictions.
 - **blending**: hold-out blend (stack a simple meta-learner on OOF).
-- **stacking / rank_average**: rank-normalise then average (robust to scale differences).
+- **stacking** (implemented in `src/ensemble.py --method stacking`): fold-safe meta-learner —
+  `classification_binary` → LogisticRegression, `regression` → Ridge; the meta model is fit on the
+  OTHER folds' OOF rows and predicts each held-out fold (meta-OOF). The persisted
+  `ensemble_metadata.json` gains a `meta` block (coef/intercept) which `infer_ensemble.py`
+  applies at serving time (`sigmoid(coef · p + intercept)` for binary, linear for regression).
+  Families outside binary/regression raise `NotImplementedError` (extend before use).
+- **rank_average**: rank-normalise then average — probe it with an A/B (prob-avg vs rank-avg on
+  OOF); it is a cheap test but frequently a no-op on already rank-aligned members.
 
 All methods operate on **OOF predictions only** — the test set never participates in
 weight learning.
