@@ -32,7 +32,8 @@ AgentML/
       src/             # data.py, eda.py, features.py, models.py, train.py,
                        # train_multi_model.py, evaluate.py, tune.py, ensemble.py,
                        # infer.py, infer_ensemble.py, ingest.py, deliver.py
-      memory/          # MEMORY.md, debugging.md, eda_report.md
+      memory/          # MEMORY.md, ITERATIONS.md, WINS.md, NEXT.md, FAILURES.md,
+                       # debugging.md, eda_report.md
 
   tests/              # smoke test (train -> evaluate -> ensemble on synthetic data)
   .github/workflows/  # CI: check-ssot + guardrails --payload + unittest
@@ -67,9 +68,14 @@ projects/<project_slug>/
   README.md                  # Project overview (human-friendly)
   project.yaml               # skill/policy version + mode + created timestamp
 
-  memory/                    # Memory & debugging context
-    MEMORY.md                # Persistent conversation context
-    debugging.md             # Debug logs and troubleshooting
+  memory/                    # Cross-session memory (state + context)
+    MEMORY.md                # Context index (goals, decisions, env notes)
+    ITERATIONS.md            # Append-only round log
+    WINS.md                  # KEEP table + current best
+    NEXT.md                  # Live queue (authoritative over doc/06 §G)
+    FAILURES.md              # DISCARD table + frozen families
+    debugging.md             # Program errors only
+    eda_report.md            # Generated EDA write-up
 
   doc/
     00_problem_statement.md  # Task definition (tabular/time-series/ranking/multiclass/binary)

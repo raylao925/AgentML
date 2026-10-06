@@ -19,6 +19,12 @@ You must obey all hard constraints in `AGENT_RULES.md`.
 
 ## 1) Task Understanding (Read First)
 You must read and extract:
+0) **`memory/` cross-session state — FIRST, before planning anything** (restore protocol,
+   `01_lifecycle.md` Step 0.5), in this order:
+   `memory/NEXT.md` → `memory/WINS.md` → `memory/FAILURES.md` → `memory/ITERATIONS.md` →
+   `memory/MEMORY.md` (then `memory/debugging.md` only when a known error resurfaces).
+   - `NEXT.md` tells you what to run next; `WINS.md` what is already proven; `FAILURES.md` what is
+     forbidden without new evidence. Skipping this step means re-running work that already failed.
 1) `doc/*.md`: full ML task content
 2) `configs/baseline.yaml`: full baseline config
 
@@ -111,10 +117,19 @@ Write run result to `results.json` (format see `doc/06_experiment_log.md` Spec).
   - or primary_metric_mean similar but secondary improves significantly (within limits)
 - If discard: still record reason (overfit / high variance / too slow / leakage risk)
 
-### Step E — Refresh the Round Queue (every round)
-- Update the `doc/06_experiment_log.md` §G round queue with this round's evidence
-  (re-rank, promote/demote, drop invalidated candidates). Ranked by expected Δ per unit cost,
-  max 5 live entries. Protocol: skill `references/10_iteration_loop.md` §2.
+### Step E — Persist memory + refresh the queue (every round, MANDATORY)
+A round is not complete until the four state files are written (`01_lifecycle.md` Step H):
+1) `memory/ITERATIONS.md` — append one `### Round <n>` block:
+   run(s) · family · change · result · decision · **lesson**.
+2) `memory/WINS.md` — append a KEEP row and update **Current best** if the run was kept;
+   `memory/FAILURES.md` — append a DISCARD row (closed-set reason) if it was discarded.
+3) `memory/NEXT.md` — **the live queue**: re-rank, promote/demote/drop invalidated candidates.
+   Ranked by expected Δ per unit cost, max 5 live entries. Protocol:
+   skill `references/10_iteration_loop.md` §2. This file is authoritative.
+4) Mirror the round into the `doc/06_experiment_log.md` §G archive block. When `memory/NEXT.md`
+   and §G disagree, `memory/NEXT.md` wins and §G is behind.
+Update `memory/MEMORY.md` only when context/decisions changed; `memory/debugging.md` on error fixes.
+`agentml guardrails` (G10) fails if `results.json` gained a record without this step.
 
 ### Step F — Divergence (only when the queue is empty)
 - Run a creative divergence pass over the idea bank (`references/10_iteration_loop.md` §3–4):

@@ -17,9 +17,14 @@ projects/<project_slug>/
   AGENT_RULES.md             # Non-negotiable rules (leakage/CV/test/metric)
   README.md                  # Project overview (human-readable)
 
-  memory/                    # Memory & debugging context
-    MEMORY.md                # Persistent conversation context
-    debugging.md             # Debug logs and troubleshooting
+  memory/                    # Cross-session memory (schemas in the skill payload)
+    MEMORY.md                # Context index (goals, decisions, env notes)
+    ITERATIONS.md            # Append-only round log (one block per round)
+    WINS.md                  # KEEP table + current best
+    NEXT.md                  # Live queue — authoritative over doc/06 §G
+    FAILURES.md              # DISCARD table + frozen families
+    debugging.md             # Program errors only
+    eda_report.md            # Generated EDA write-up
 
   doc/
     00_problem_statement.md  # Task definition (tabular/time-series/ranking/multiclass/binary)

@@ -19,6 +19,19 @@ pass, `1` = at least one FAIL.
 | G7 | AST heuristic: no `.fit()`/`.fit_transform()` called on valid/test data | WARN |
 | G8 | `project.yaml` present with `skill.version` + `policy.version` | FAIL |
 | G9 | Frozen-file hashes (when `# AGENTML:FROZEN` marker present) unchanged | FAIL |
+| G10 | `memory/` state is present and fresh: `MEMORY.md` + `debugging.md` exist; `ITERATIONS/WINS/NEXT/FAILURES` exist; when `results.json` has records, `ITERATIONS.md` has a matching round block | FAIL¹ |
+
+¹ **Severity rule** (see `scripts/guardrails.py`): FAIL when `results.json` has ≥1 record and any
+of the four state files is missing/empty, or when the ledger's last record has no `ITERATIONS.md`
+block. If the ledger is empty (`[]`), the four state files may be absent — WARN only. So a legacy
+project that never ran a round still passes; the first round makes memory mandatory.
+In `--payload` mode only presence is checked.
+
+### G10 — memory freshness (why it exists)
+`01_lifecycle.md` Step H says every round writes `memory/ITERATIONS.md` + refreshes
+`memory/NEXT.md`. G10 is the executor of that rule: it is what stops the project from drifting back
+to "runs recorded, memory empty" — the failure mode where the next session cannot recover what was
+tried. A FAIL here means: finish Step H before claiming the round complete.
 
 ## Hash convention
 `agentml cv-lock` writes into `doc/04_cv_strategy.md`:

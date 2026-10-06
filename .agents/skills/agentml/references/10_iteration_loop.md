@@ -11,7 +11,7 @@
 01_lifecycle steps A–D   Plan → Execute → Log → Keep/Discard
         │
         ▼
-E  Queue refresh   ── re-rank doc/06 §G queue from the new evidence (always, every round)
+E  Queue refresh   ── re-rank memory/NEXT.md (live, authoritative) + mirror into doc/06 §G (always, every round)
         │
         ▼
 F  Divergence      ── ONLY when the queue is empty: invent candidates from §3 idea bank
@@ -28,14 +28,20 @@ stopping criterion, not "the pipeline ran once".
 
 ## 2) Round queue protocol
 
-- Location: `doc/06_experiment_log.md` §G (one `G.x` block per round, living section — template
-  there). A project without a §G block after its first run is out of contract.
+- **Live location: `memory/NEXT.md`** — the authoritative queue, rewritten every round
+  (`01_lifecycle.md` Step H). **Archive: `doc/06_experiment_log.md` §G** — one `G.x` block per round,
+  appended for the record. On disagreement `memory/NEXT.md` wins and §G is behind.
+  A project without a §G block after its first run is out of contract (`check_ssot` R8),
+  and a round without a `memory/` update fails `guardrails` G10.
+- Read the queue (then `WINS.md` + `FAILURES.md`) at session start before planning anything
+  (`01_lifecycle.md` Step 0.5).
 - Every candidate carries five fields:
   `hypothesis · expected Δ (magnitude + reasoning) · cost (wall-clock) · change family · evidence link`.
 - Rank by **expected value per unit cost**, not by excitement.
 - Depth cap: **5 live candidates**. More stay in the idea bank (§3) until promoted.
 - Refresh rule: re-rank after every run — a DISCARD often demotes its whole family (the evidence
-  says that lever is weak here); a KEEP often promotes siblings of the winning family.
+  says that lever is weak here); a KEEP often promotes siblings of the winning family. Record the
+  DISCARD in `memory/FAILURES.md` and the KEEP in `memory/WINS.md` in the same Step H pass.
 - The queue answers "what next" without re-deriving context; it is the agent's working memory
   across turns (write it down — do not expect the reader to remember it).
 
@@ -67,7 +73,8 @@ Run when the queue is empty and §5 says stop has NOT fired. Timebox: one pass, 
    expected Δ range, cost, and the first command/file to touch.
 3. **Kill**: drop any candidate that (a) needs a frozen-zone change (CV, metric, test usage —
    `02_policy.md`), (b) has no measurable prediction, or (c) costs more than the remaining budget.
-4. **Rank** survivors by EV/cost, promote the top ≤5 into `doc/06` §G, execute the #1 next round.
+4. **Rank** survivors by EV/cost, promote the top ≤5 into `memory/NEXT.md` (and mirror the round
+   into `doc/06` §G), execute the #1 next round.
 
 Divergence is bounded creativity: the output is ranked queue entries, not a brainstorm document.
 

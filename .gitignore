@@ -30,6 +30,15 @@ kaggle.json
 kaggle_state.json
 Thumbs.db
 .DS_Store
+
+# Stray artifacts when a payload script is run from the repo root instead of a
+# project cwd (e.g. `python src/train.py`). Anchored, so the payload copies
+# under .agents/skills/agentml/assets/project-template/ are unaffected.
+/results.json
+/params.json
+/metrics.json
+/submission.csv
+/feature_manifest.json
 # Distribution / packaging
 .Python
 build/

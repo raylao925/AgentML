@@ -32,7 +32,8 @@ AgentML/
       src/             # data.py, eda.py, features.py, models.py, train.py,
                        # train_multi_model.py, evaluate.py, tune.py, ensemble.py,
                        # infer.py, infer_ensemble.py, ingest.py, deliver.py
-      memory/          # MEMORY.md, debugging.md, eda_report.md
+      memory/          # MEMORY.md, ITERATIONS.md, WINS.md, NEXT.md, FAILURES.md,
+                       # debugging.md, eda_report.md
 
   tests/              # smoke test（合成資料上的 train -> evaluate -> ensemble）
   .github/workflows/  # CI：check-ssot + guardrails --payload + unittest
@@ -67,9 +68,14 @@ projects/<project_slug>/
   README.md                  # 專案概覽（人類閱讀）
   project.yaml               # skill/policy 版本 + 模式 + 建立時間
 
-  memory/                    # 記憶與除錯上下文
-    MEMORY.md                # 持續對話上下文
-    debugging.md             # 除錯日誌與疑難排解
+  memory/                    # 跨 session 記憶（狀態 + 上下文）
+    MEMORY.md                # 上下文索引（目標、決策、環境備註）
+    ITERATIONS.md            # 追加式輪次日誌（每輪一個 block）
+    WINS.md                  # KEEP 表 + 當前最佳
+    NEXT.md                  # 即時佇列（優先於 doc/06 §G）
+    FAILURES.md              # DISCARD 表 + 已封鎖方法族
+    debugging.md             # 僅程式錯誤
+    eda_report.md            # EDA 報告產物
 
   doc/
     00_problem_statement.md  # 任務定義（tabular/time-series/ranking/multiclass/binary）

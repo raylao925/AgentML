@@ -55,5 +55,28 @@ Every run (keep **and** discard) appends exactly one `results.json` record and w
 `data_version`, `feature_version`, `code_hash`.
 
 ## 8) Memory
-`memory/MEMORY.md` = persistent context; `memory/debugging.md` = technical error log.
-Read at session start; update proactively during work.
+
+Cross-session memory lives in `memory/` as six markdown files: two context files plus four
+**experiment state** files — the four state files are what makes the loop survive a session break.
+
+| file | question it answers | write trigger |
+|---|---|---|
+| `memory/NEXT.md` | what do I run next? (live queue, **authoritative over `doc/06` §G**) | every round (Step H) |
+| `memory/ITERATIONS.md` | what happened and what did it prove? | every round (Step H) |
+| `memory/WINS.md` | what already worked + current best | every `KEEP` |
+| `memory/FAILURES.md` | what was rejected + why (frozen families) | every `DISCARD` |
+| `memory/MEMORY.md` | goals, constraints, decisions, environment notes | when context changes |
+| `memory/debugging.md` | program errors only (stack traces, fixes) | on program errors |
+
+Lifecycle: **Step 0.5** (`01_lifecycle.md`) reads them in order NEXT → WINS → FAILURES →
+ITERATIONS → MEMORY; **Step H** writes the four state files after every round and at session end.
+
+Schemas live in the payload `memory/` (the contract of *what* each file holds). Values live in the
+project. `agentml guardrails` enforces presence/freshness (G10); `agentml check-ssot` enforces that
+`doc/06` §G keeps pointing at this memory (`R8`).
+
+Hard rules:
+- Never store experiment state (rounds, queue, keeps, rejects) in `MEMORY.md` or `debugging.md`.
+- Never re-propose an idea listed in `FAILURES.md` without new evidence; never re-test to
+  rediscover a result already in `WINS.md`.
+- Append and correct forward — history is not rewritten.

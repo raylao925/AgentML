@@ -265,26 +265,28 @@ Output: `submission.csv` with ensemble predictions and optimized weights metadat
 
 Output: deterministic enough runs to reproduce the same artifacts under same data + config.
 
-## 13) Memory Management & Debugging Documentation
-- **Session Start**: Read `memory/MEMORY.md` to restore context from previous sessions
-- **During Problem Solving**:
-  - Update `memory/MEMORY.md` with key decisions, user preferences, and constraints
-  - Write to `memory/debugging.md` when encountering errors or debugging issues
-- **Memory.md Content**:
-  - Project goals and constraints
-  - User preferences and feedback
-  - Key decisions and their rationale
-  - Important context for future sessions
-- **debugging.md Content**:
-  - Error messages and stack traces
-  - Failed approaches and why they failed
-  - Solutions that worked
-  - Code snippets for reference
-- **Best Practices**:
-  - Keep MEMORY.md concise and focused on context
-  - Keep debugging.md technical and detailed
-  - Update both files proactively during problem-solving
-  - Reference these files when resuming work
+## 13) Memory Management & Cross-Session Continuity
+Six files under `memory/` (schemas owned by `.agents/skills/agentml/assets/project-template/memory/`;
+contract in the skill's `references/02_policy.md` §8):
 
-Output: Continuity across sessions and documented debugging process.
+| file | question it answers | write trigger |
+|---|---|---|
+| `memory/NEXT.md` | what to run next — live queue, **authoritative over `doc/06` §G** | every round |
+| `memory/ITERATIONS.md` | what happened and what it proved (append-only round log) | every round |
+| `memory/WINS.md` | what already worked + current best (KEEP table) | every KEEP |
+| `memory/FAILURES.md` | what was rejected + why (DISCARD table, frozen families) | every DISCARD |
+| `memory/MEMORY.md` | goals, constraints, decisions, user preferences | when context changes |
+| `memory/debugging.md` | program errors only (error → cause → fix) | on program errors |
+
+- **Session start**: read in order `NEXT` → `WINS` → `FAILURES` → `ITERATIONS` → `MEMORY`
+  (skill `01_lifecycle.md` Step 0.5; `program.md` §1). Do not plan before this restore.
+- **End of every round**: write the four state files (Step H / `program.md` Step E), then mirror the
+  round into `doc/06` §G. On disagreement `memory/NEXT.md` wins.
+- **Never**: re-propose an idea in `FAILURES.md` without new evidence, re-test to rediscover a
+  result already in `WINS.md`, or store rounds/queue/keeps inside `MEMORY.md`.
+- **Enforcement**: `agentml guardrails` → `G10`; `agentml check-ssot` → `R8`.
+  `sync_project.py` is state-guarded (payload/state manifest): populated STATE files —
+  `memory/*` included — are never overwritten; only PAYLOAD files flow outward.
+
+Output: continuity across sessions — the next session restores the loop instead of re-deriving it.
 

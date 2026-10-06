@@ -249,6 +249,12 @@ Every project **must** keep a round queue in this file (append a `G.x` block per
 round at the bottom). The queue is what turns "one pipeline pass" into an improvement loop —
 protocol: `references/10_iteration_loop.md`.
 
+**Live state lives in `memory/NEXT.md`.** That file is the authoritative queue (rewritten every
+round by `01_lifecycle.md` Step H); this `§G` section is the **archive mirror** — one `G.x` block
+per round, appended for the record. When the two disagree, `memory/NEXT.md` wins and this section
+is behind. Reading order at session start: `memory/NEXT.md` → `WINS.md` → `FAILURES.md`
+(`01_lifecycle.md` Step 0.5).
+
 Rules:
 1. After **every** logged run (Step D of `01_lifecycle.md`), refresh the queue: re-rank remaining
    candidates, add newly discovered ideas, drop invalidated ones.

@@ -21,7 +21,14 @@ projects/<project_slug>/
     train.py  train_multi_model.py  evaluate.py
     tune.py  ensemble.py  infer.py  infer_ensemble.py
     ingest.py  deliver.py        # data entry / delivery adapters
-  memory/  (MEMORY.md, debugging.md, eda_report.md)
+  memory/                            # cross-session state (schemas in the skill payload)
+    MEMORY.md                        # context index (goals, decisions, env notes)
+    ITERATIONS.md                    # append-only round log (one block per round)
+    WINS.md                          # KEEP table + current best
+    NEXT.md                          # live queue — authoritative over doc/06 §G
+    FAILURES.md                      # DISCARD table + frozen families
+    debugging.md                     # program errors only
+    eda_report.md                    # generated EDA write-up
   data/    (raw/ interim/ processed/)      # raw is gitignored
   runs/<run_id>/ (params.json metrics.json notes.md artifacts/ plots/)
   results.json                    # append-only ledger (JSON array)

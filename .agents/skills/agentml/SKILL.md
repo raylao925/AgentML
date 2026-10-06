@@ -28,9 +28,18 @@ Root `SKILL.md` is the human-readable index; if it disagrees with this skill set
 - **Payload (single owner)**: `assets/project-template/` — this is the only copy of the project template.
   Older clones may still carry a legacy `templates/` directory; the scripts fall back to it if the payload is missing.
 - **SSoT rule**: policy/template code lives in this skill; a project folder only holds its own state
-  (`doc/`, `data/`, `runs/`, `results.json`).
+  (`doc/`, `data/`, `runs/`, `results.json`, `memory/`).
+- **Cross-session memory**: the payload ships six `memory/*.md` files. Four are experiment state
+  (`ITERATIONS.md`, `WINS.md`, `NEXT.md`, `FAILURES.md`) plus `MEMORY.md` (context) and
+  `debugging.md` (program errors). Lifecycle `01_lifecycle.md` Step 0.5 reads them at session start
+  and Step H rewrites the four state files every round; `AGENT_RULES.md` §7 makes it a hard rule.
+  `sync_project.py` uses a payload/state manifest (Phase 1): STATE files (`README.md`,
+  `project.yaml`, `configs/*`, `doc/*`, `memory/*`, `src/{features,tune}.py`) are **add-only** —
+  an existing file with content is never overwritten — while PAYLOAD files (`AGENT_RULES.md`,
+  `program.md`, framework `src/*`, `data_sources/*`) flow outward on every sync.
 - **Verifier**: run `python ./.agents/skills/agentml/scripts/check_ssot.py` after any doc/path change
-  (checks doc numbering, stale documentation paths, payload presence, placeholder leakage).
+  (checks doc numbering, stale documentation paths, payload presence, placeholder leakage,
+  and `R8` — `doc/06` §G must stay the "Round Queue" pointing at `memory/NEXT.md`).
 
 ## When To Use
 Use this skill when the user asks to:
@@ -51,7 +60,14 @@ Use this skill when the user asks to:
 4. Apply minimal placeholder replacement (project name markers) and stamp `project.yaml`
    with `project.mode` and a creation date.
 5. If requested, create `.venv` and install base dependencies.
-6. Run completion checks and report generated artifacts.
+6. Run completion checks (including `check_ssot.py` and `guardrails.py`) and report generated artifacts.
+
+The copied `memory/` carries the six state schemas; the first real round fills them
+(`01_lifecycle.md` Step H). For an **existing** project being upgraded, run
+`sync_project.py --project <slug> --include-memory` — STATE files (incl. `memory/`) are only
+filled when missing or body-less; populated ones are never overwritten. Note the base
+payload/state sync always runs — the flags only add the optional `doc/` / `memory/` targets
+(use `--dry-run` to preview the classified actions).
 
 Run the unified CLI (recommended) or a specific script:
 
@@ -88,11 +104,14 @@ Use supporting docs:
 ## Completion Criteria
 A run is complete only when:
 - target folder exists with expected `doc/`, `configs/`, `src/`, `memory/`
+- `memory/` carries all six files: `MEMORY.md`, `debugging.md`, `ITERATIONS.md`, `WINS.md`,
+  `NEXT.md`, `FAILURES.md`
 - `data/raw`, `data/interim`, `data/processed`, and `runs/` are present
 - `README.md`, `program.md`, `AGENT_RULES.md`, and `project.yaml` exist
 - `project.yaml` declares `project.mode` + `skill.version` + `policy.version`
 - if mode is `scaffold+venv`, `.venv` exists and requirements installation was attempted
-- `python ./scripts/check_ssot.py` passes for the new project
+- `python ./scripts/check_ssot.py` passes for the new project (incl. `R8`)
+- `python ./scripts/guardrails.py --project <slug>` reports no FAIL (incl. `G10`)
 
 ## Notes
 - This skill creates project scaffolding only; it does not train models.

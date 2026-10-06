@@ -10,6 +10,8 @@ Single Source Of Truth rules enforced here:
   R5  No live file points at the legacy `templates/` payload path.
   R6  `results.json` is a JSON array with no placeholder/example run records.
   R7  Projects contain no unresolved {{PLACEHOLDER}} tokens.
+  R8  doc/06 §G stays the "Round Queue" section and points at memory/NEXT.md (the live queue);
+      §G must exist once results.json has records.
 
 Usage:
     python ./.agents/skills/agentml/scripts/check_ssot.py [--project SLUG] [--quiet]
@@ -166,6 +168,45 @@ def check_ledger(path: Path, label: str) -> None:
             add(f"R6: {label}: record {i} looks like a placeholder (run_id={run_id!r})")
 
 
+ROUND_QUEUE_HEADING_RE = re.compile(r"^##\s*G\)\s*(.*)$", re.MULTILINE)
+
+
+def load_ledger(path: Path) -> list | None:
+    """Return the ledger list, or None when it is absent/unreadable."""
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(read(path) or "[]")
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, list) else None
+
+
+def check_round_queue(doc_path: Path, label: str, ledger: list | None) -> None:
+    """R8 — doc/06 §G must stay the Round Queue and point at memory/NEXT.md."""
+    has_runs = bool(ledger)
+    if not doc_path.exists():
+        if has_runs:
+            add(f"R8: {label}: doc/06_experiment_log.md missing while results.json has records")
+        return
+    text = read(doc_path)
+    m = ROUND_QUEUE_HEADING_RE.search(text)
+    if not m:
+        if has_runs:
+            add(f"R8: {label}: doc/06 §G missing but results.json has {len(ledger)} record(s) "
+                f"(the round queue is the contract's living section)")
+        else:
+            notes.append(f"R8(note): {label}: doc/06 §G not created yet (required once the first round runs)")
+        return
+    title = m.group(1).strip()
+    if not title.startswith("Round Queue"):
+        add(f"R8: {label}: doc/06 §G heading drifted -> '## G) {title}' "
+            f"(expected '## G) Round Queue ...' — see the payload doc/06)")
+    if "memory/NEXT.md" not in text:
+        add(f"R8: {label}: doc/06 does not reference memory/NEXT.md "
+            f"(§G is the archive; memory/NEXT.md is the live queue)")
+
+
 def project_paths(project: Path) -> list[Path]:
     paths: list[Path] = []
     for name in ["AGENT_RULES.md", "README.md", "program.md", "results.json"]:
@@ -196,6 +237,8 @@ def main() -> int:
 
     check_doc_set(PAYLOAD / "doc", "payload")
     check_ledger(PAYLOAD / "results.json", "payload")
+    check_round_queue(PAYLOAD / "doc" / "06_experiment_log.md", "payload",
+                      load_ledger(PAYLOAD / "results.json"))
 
     projects = sorted(p for p in PROJECTS_DIR.glob("*") if p.is_dir()) if PROJECTS_DIR.is_dir() else []
     if args.project:
@@ -206,6 +249,8 @@ def main() -> int:
         label = f"projects/{project.name}"
         check_doc_set(project / "doc", label)
         check_ledger(project / "results.json", label)
+        check_round_queue(project / "doc" / "06_experiment_log.md", label,
+                          load_ledger(project / "results.json"))
         scan_paths(project_paths(project))
         if not (project / "src").is_dir():
             notes.append(f"{label}: no src/ (scaffold-only copy?)")

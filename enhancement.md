@@ -282,9 +282,9 @@ splits_hint: { group_key: customer_id, time_col: snapshot_date }   # 供 cv-lock
 | 操作 | 行為 | Agent 須知 |
 |---|---|---|
 | `init_agentml_project.py <slug>` | `copytree` payload → `projects/<slug>/`；建立 `data/{raw,interim,processed}`、`runs/`；替換 `README.md` / `program.md` 的 `{{PROJECT_NAME}}` | 任務級 placeholder 在 yaml / doc 中，init **不**代填 |
-| `sync_project.py <slug>` | 覆寫 `AGENT_RULES.md`、`program.md`、`README.md`、`src/*`、`configs/*` | **不碰** `data/`、`runs/`、`results.json`（除非 `--reset-ledger`） |
-| `sync_project.py ... --include-docs` | 可覆寫 `doc/` | 會抹掉專案內已寫研究狀態 → 預設不用 |
-| `sync_project.py ... --include-memory` | 可覆寫 `memory/` | 同上 |
+| `sync_project.py <slug>` | 分類同步：PAYLOAD（`AGENT_RULES.md`、`program.md`、framework `src/*`、`data_sources/*`）覆寫；STATE（`README.md`、`project.yaml`、`configs/*`、`doc/*`、`memory/*`、`src/{features,tune}.py`）有內容即跳過 | **不碰** `data/`、`runs/`、`results.json`（除非 `--reset-ledger`）；2026-10-06 Phase 1 所有權 manifest 起 |
+| `sync_project.py ... --include-docs` | 加入 `doc/*.md` 同步目標（STATE 保護） | 缺檔或無內容才寫入；已有內容永不覆寫 |
+| `sync_project.py ... --include-memory` | 加入 `memory/*.md` 同步目標（STATE 保護） | 同上；旗標只「加入可選目錄」，基礎 payload/state 同步永遠執行 |
 | `check_ssot.py [--project path]` | R1–R7：payload 完整性、禁 `docs/`、doc 編號、禁 live 引用 legacy `templates/`、ledger、placeholder | CI 目標入口；本地需 `python` 在 PATH |
 
 ---

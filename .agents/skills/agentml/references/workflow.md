@@ -13,6 +13,9 @@ This reference maps the repository's root `SKILL.md` and this skill's template p
   - `doc/*.md`
   - `memory/MEMORY.md`
   - `memory/debugging.md`
+  - `memory/ITERATIONS.md` · `memory/WINS.md` · `memory/NEXT.md` · `memory/FAILURES.md`
+    (cross-session state schemas — an existing project copy of these is never overwritten;
+    see `scripts/sync_project.py`)
 
 ## Stage 2: Required Folder Checks
 Ensure these folders exist after copy:
@@ -29,6 +32,8 @@ From root `SKILL.md` section 0:
 
 ## Stage 4: Governance Alignment
 Before first training run:
+- Restore session memory (`01_lifecycle.md` Step 0.5): read `memory/NEXT.md` → `WINS.md` →
+  `FAILURES.md` → `ITERATIONS.md` → `MEMORY.md`.
 - Read `program.md`.
 - Enforce `AGENT_RULES.md`.
 - Confirm CV authority in `doc/04_cv_strategy.md` (lock-in mode).
@@ -38,6 +43,7 @@ Project is ready when:
 - scaffold exists,
 - runtime folders exist,
 - docs placeholders are minimally customized,
+- memory files exist and the session-start restore has been performed,
 - optional environment setup completed or explicitly skipped.
 
 ## Branching Logic

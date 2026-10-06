@@ -276,6 +276,71 @@ def check_g9(root: Path) -> None:
         record("G9", "SKIP", "no AGENTML:FROZEN markers present")
 
 
+# G10 — cross-session memory state (references/09_guardrails.md, 02_policy.md §8, 01_lifecycle Step H)
+STATE_FILES = ("ITERATIONS.md", "WINS.md", "NEXT.md", "FAILURES.md")
+CONTEXT_FILES = ("MEMORY.md", "debugging.md")
+ROUND_HEADING_RE = re.compile(r"^##+\s+Round\s+\d+", re.MULTILINE)
+
+
+def _memory_has_body(text: str) -> bool:
+    """True when the file carries real content beyond headings/quotes/rule lines."""
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#") or s.startswith(">") or s.startswith("---"):
+            continue
+        return True
+    return False
+
+
+def check_g10(root: Path) -> None:
+    mem = root / "memory"
+    missing_ctx = [f for f in CONTEXT_FILES if not (mem / f).exists()]
+    if not mem.exists():
+        record("G10", "FAIL", "memory/ directory missing (payload contract requires it)")
+        return
+
+    # Freshness gate: is there experiment history that memory must explain?
+    ledger = []
+    p = root / "results.json"
+    if p.exists():
+        try:
+            data = json.loads(read(p) or "[]")
+            ledger = data if isinstance(data, list) else []
+        except Exception:
+            ledger = []
+
+    missing_state = [f for f in STATE_FILES
+                     if not (mem / f).exists() or not _memory_has_body(read(mem / f))]
+    problems, notes = [], []
+
+    if missing_ctx:
+        problems.append(f"context files missing/empty: {missing_ctx}")
+    if not ledger:
+        # Nothing has been run yet -> memory files are not yet mandatory.
+        if missing_state:
+            notes.append(f"no ledger records; state files not yet required (absent: {missing_state})")
+    else:
+        if missing_state:
+            problems.append(f"state files missing/empty with {len(ledger)} ledger record(s): {missing_state}")
+        else:
+            text = read(mem / "ITERATIONS.md")
+            if not ROUND_HEADING_RE.search(text):
+                problems.append("ITERATIONS.md has no '### Round <n>' block for a non-empty ledger")
+            else:
+                last = ledger[-1] if isinstance(ledger[-1], dict) else {}
+                last_id = str(last.get("run_id", "")).strip()
+                if last_id and last_id not in text:
+                    problems.append(
+                        f"ITERATIONS.md has no block covering the last run '{last_id}' (ledger is newer than memory)")
+
+    if problems:
+        record("G10", "FAIL", "; ".join(problems))
+    elif notes:
+        record("G10", "WARN", "; ".join(notes))
+    else:
+        record("G10", "PASS", "memory/ state files present and consistent with results.json")
+
+
 def parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="AgentML executable guardrails (references/09_guardrails.md)")
     ap.add_argument("--payload", action="store_true", help="Check the template payload instead of a project")
@@ -309,6 +374,7 @@ def main() -> int:
     check_g7(root)
     check_g8(root)
     check_g9(root)
+    check_g10(root)
 
     fails = 0
     for cid, status, msg in results:
