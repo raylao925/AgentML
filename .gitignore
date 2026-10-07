@@ -11,6 +11,12 @@ skills-lock.json
 projects/
 *.so
 
+# --- Dev-workspace only (never part of the distributable repo) ---
+# Local planning notes and machine-specific regression tests stay untracked, so a
+# `git merge --no-ff dev` can never drag them into main.
+/enhancement.md
+/tests/*_restoration.py
+
 # --- AgentML generated artifacts (project-local: never commit) ---
 # These are produced by the template payload at any depth (repo root,
 # .agents/skills/agentml/assets/project-template/, projects/<slug>/).
