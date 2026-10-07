@@ -1,10 +1,50 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+.agents/skills/*
+!.agents/skills/agentml/
+.clinerules/
+catboost_info/
 *.py[codz]
+skills-lock.json
 *$py.class
 .vscode/
 projects/
 *.so
+
+# --- Dev-workspace only (never part of the distributable repo) ---
+# Local planning notes and machine-specific regression tests stay untracked, so a
+# `git merge --no-ff dev` can never drag them into main.
+/enhancement.md
+/tests/*_restoration.py
+
+# --- AgentML generated artifacts (project-local: never commit) ---
+# These are produced by the template payload at any depth (repo root,
+# .agents/skills/agentml/assets/project-template/, projects/<slug>/).
+runs/
+reports/
+deliverables/
+models/
+data/raw/
+data/interim/
+data/processed/
+data/sample/
+*.parquet
+*.pkl
+*.joblib
+*.onnx
+kaggle.json
+kaggle_state.json
+Thumbs.db
+.DS_Store
+
+# Stray artifacts when a payload script is run from the repo root instead of a
+# project cwd (e.g. `python src/train.py`). Anchored, so the payload copies
+# under .agents/skills/agentml/assets/project-template/ are unaffected.
+/results.json
+/params.json
+/metrics.json
+/submission.csv
+/feature_manifest.json
 # Distribution / packaging
 .Python
 build/

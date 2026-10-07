@@ -1,0 +1,29 @@
+# data_sources/example_customer.yaml
+# Copy-me template for a customer (non-Kaggle) dataset. Fill the fields, then run:
+#   python src/ingest.py --source data_sources/example_customer.yaml
+source_type: local_files        # local_files | kaggle_competition | database | object_store | api
+name: "{{PROJECT_NAME}}_v1"     # logical data_version label
+
+files:                          # glob(s) relative to paths.raw
+  train: ["train*.csv"]         # can be a list; globs allowed
+  test:  ["test*.csv"]          # optional; omit for training-only
+
+paths:
+  raw: "data/raw"
+  processed: "data/processed"
+
+csv_opts: {sep: ",", encoding: "utf-8"}
+
+# Task hint (customer mode still requires task discovery; see references/03_task_discovery.md)
+target:
+  column: null                  # e.g. "churn_flag" — set after discovery is confirmed
+  positive_label: null          # e.g. "Yes" for binary targets
+  available_after: null         # label availability, e.g. "T+30d"
+
+entity:                         # split hints (feed doc/04_cv_strategy.md)
+  primary_key: null             # e.g. "customer_id"
+  time_col: null                # e.g. "snapshot_date"
+
+privacy:
+  pii_columns: []               # e.g. [full_name, email]
+  hash: sha256                  # sha256 | none

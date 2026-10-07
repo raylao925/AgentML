@@ -1,0 +1,24 @@
+# project.yaml — skill / policy contract for this project (SSoT for versions & mode)
+#
+# This file is written once at scaffold time and rarely changes. It tells the agent:
+#   - which delivery/discovery flow to use (mode)
+#   - which skill/policy versions the project was pinned to
+# Versions are bumped only when the skill says so; a mismatch is reported by
+# `agentml doctor` (non-fatal) and reproduced in `runs/<run_id>/params.json`.
+project:
+  name: "{{PROJECT_NAME}}"
+  mode: "customer"          # customer | kaggle
+  created: "{{CREATED_AT}}" # ISO-8601 date, stamped at scaffold time
+
+skill:
+  name: "agentml"
+  version: "1.0.0"          # bump on breaking payload/CLI changes
+
+policy:
+  version: "1.0.0"          # bump on hard-rule mechanism changes (references/02_policy.md)
+  cv_lock_required: true    # Gate B: doc/04_cv_strategy.md must carry locked_hash
+  allow_external_search: false  # customer mode: no web search on raw rows unless true
+  require_doc_update_on:
+    - "cv"
+    - "features.flags"
+    - "model.name"

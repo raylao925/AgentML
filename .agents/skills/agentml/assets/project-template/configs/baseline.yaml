@@ -1,0 +1,84 @@
+# configs/baseline.yaml
+project:
+  name: "{{PROJECT_NAME}}"
+  run_tag: "baseline"
+  seed: 42  # Default seed, used as fallback
+  # Per-model seeds for ensemble diversity (useful for hill climbing)
+  seed_list: [{{SEED1}}]  # e.g. [42, 2021, 7, 1234]
+
+task:
+  family: "classification_binary"  # classification_binary | classification_multiclass | regression | ranking | time_series
+  target: "{{TARGET_COLUMN}}"
+  primary_metric: "AUC"            # AUC | LogLoss | RMSE | MAE | NDCG@10 | MAP@K ...
+  metric_higher_is_better: true    # usually false for regression RMSE/MAE
+  secondary_metrics: ["LogLoss", "Brier"]
+
+data:
+  data_version: "raw_snapshot_YYYYMMDD"
+  train_path: "data/processed/train.parquet"
+  test_path:  "data/processed/test.parquet"
+  time_col: null                  # for time-series / time-based split, e.g. "event_date"
+  group_key: null                 # for GroupKFold / ranking query_id, e.g. "customer_id" or "query_id"
+  id_cols: ["{{ID_COL}}"]         # optional: for join / exclude
+  drop_cols: []                   # explicitly forbidden (incl. leakage columns)
+
+cv:
+  cv_type: "StratifiedKFold"       # StratifiedKFold | KFold | GroupKFold | TimeSeriesSplit | CustomTimeFolds
+  n_splits: 3
+  shuffle: true
+  random_state: 42
+  stratify_col: "{{TARGET_COLUMN}}"  # common for classification
+  time_col: null
+  group_key: null
+  gap_or_embargo: null             # for time-series, e.g. "7d"
+
+features:
+  feature_set_id: "fs_baseline_v1"
+  # Feature flags for agent to toggle (see search_space.yaml)
+  flags:
+    use_scaler: true
+    use_onehot: true
+    use_target_encoding: false
+    use_lag_features: false
+    use_rolling_features: false
+    use_group_aggregations: false
+    use_featuretools: true
+  params:
+    target_encoding:
+      smoothing: 10
+      min_samples_leaf: 50
+    lag_features:
+      lags: [{{LAG1}}, {{LAG2}}, {{LAG3}}]  # e.g. [1, 7, 14]
+    rolling_features:
+      windows: [{{WINDOW1}}, {{WINDOW2}}, {{WINDOW3}}]  # e.g. [7, 14, 28]
+      stats: ["mean", "std"]
+    featuretools:
+      trans_primitives: ["day", "month", "year"]
+      agg_primitives: ["mean", "std", "max", "min", "sum", "count"]
+      max_depth: 1
+
+model:
+  name: "LightGBM"                 # LightGBM | XGBoost | CatBoost | LogisticRegression | ElasticNet | LGBMRanker | XGBRanker
+  objective: "binary"              # binary | multiclass | regression | ranking
+  params:
+    learning_rate: 0.05
+    n_estimators: 2000
+    max_depth: -1
+    num_leaves: 64
+    min_data_in_leaf: 50
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_lambda: 1.0
+
+training:
+  early_stopping: true
+  early_stopping_rounds: 50
+  eval_at: [10]                    # for ranking tasks (NDCG@10)
+  num_boost_round: 2000
+  verbose: 100
+
+output:
+  results_path: "results.json"
+  runs_dir: "runs/"
+  save_oof: true
+  save_model: true
